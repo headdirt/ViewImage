@@ -1,4 +1,4 @@
-'use-strict';
+'use strict';
 
 function toI18n(str) {
     return str.replace(/__MSG_(\w+)__/g, function (match, v1) {

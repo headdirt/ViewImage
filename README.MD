@@ -13,5 +13,6 @@ You can get this extension for Firefox or Chrome or as a userscript:
 - [Userscript Version](https://gist.github.com/bijij/58cc8cfc859331e4cf80210528a7b255)
 
 ### Credits
+- Updated userscript with working Google Images fixes by [ner00](https://github.com/ner00) — [userscript gist](https://gist.github.com/ner00/ec9ae47e202b8e99f19be44a5af6baf3)
 - More accurate URL collection thanks to [devunt](https://github.com/devunt)/[make-gis-great-again](https://github.com/devunt/make-gis-great-again)
 - Icon by [Daniel Hickman](https://github.com/danielhickman)

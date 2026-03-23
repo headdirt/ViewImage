@@ -1,24 +1,23 @@
-'use-strict';
+'use strict';
 
-//const DEBUG = true;
+const DEBUG = false;
 
-/* function toI18n(str) {
+function toI18n(str) {
     return str.replace(/__MSG_(\w+)__/g, function (match, v1) {
         return v1 ? chrome.i18n.getMessage(v1) : '';
     });
-} */
+}
 
 // Default options
 const defaultOptions = {
     'open-in-new-tab': true,
-    //'open-search-by-in-new-tab': true,
-    //'show-globe-icon': true,
+    'open-search-by-in-new-tab': true,
     //'hide-images-subject-to-copyright': false,
     'manually-set-button-text': false,
     'no-referrer': false,
     'button-text-view-image': '',
-    //'button-text-search-by-image': '',
-    //'context-menu-search-by-image': true,
+    'button-text-search-by-image': '',
+    'context-menu-search-by-image': true,
     //'context-menu-search-by-image-new-tab': false,
 };
 
@@ -27,18 +26,16 @@ chrome.storage.sync.get('defaultOptions', function () {
     chrome.storage.sync.set({ defaultOptions });
 });
 
-// Deprecated for now, user feedback is that it's not useful
-/* chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener(() => {
     chrome.storage.sync.get(['options', 'defaultOptions'], (storage) => {
-        if (!storage.hasOwnProperty('options')) {
+        if (!Object.prototype.hasOwnProperty.call(storage, 'options')) {
             storage.options = {};
         }
 
-        const options = Object.assign(storage.defaultOptions, storage.options);
+        const options = Object.assign({}, defaultOptions, storage.defaultOptions || {}, storage.options);
 
         // Setup "Search by image" context menu item
-
-         if (options['context-menu-search-by-image']) {
+        if (options['context-menu-search-by-image']) {
             chrome.contextMenus.create(
                 {
                     'id': 'ViewImage-SearchByImage',
@@ -48,10 +45,9 @@ chrome.storage.sync.get('defaultOptions', function () {
             );
         }
     });
-}); */
+});
 
-// See above deprecation note
-/* chrome.contextMenus.onClicked.addListener((info, tab) => {
+chrome.contextMenus.onClicked.addListener((info, tab) => {
     if (DEBUG)
         console.log('ViewImage: Search By Image context menu item clicked.', info, tab);
 
@@ -60,4 +56,4 @@ chrome.storage.sync.get('defaultOptions', function () {
             url: `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(info.srcUrl)}`,
         });
     }
-}); */
+});

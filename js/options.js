@@ -84,8 +84,7 @@ chrome.storage.sync.get('defaultOptions', function (storage) {
     load();
 });
 
-// Deprecated for now, user feedback is that it's not useful
-/* const update_context_menu = function (enabled) {
+const update_context_menu = function (enabled) {
     if (enabled) {
         chrome.contextMenus.create(
             {
@@ -97,16 +96,15 @@ chrome.storage.sync.get('defaultOptions', function (storage) {
     } else {
         chrome.contextMenus.remove('ViewImage-SearchByImage');
     }
-}; */
+};
 
 // On change, save
 document.addEventListener('change', event => {
 
     // Update the visibility of the context menu
-    // Deprecated for now, user feedback is that it's not useful
-    /* if (event.target.id === 'context-menu-search-by-image') {
+    if (event.target.id === 'context-menu-search-by-image') {
         update_context_menu(event.target.checked);
-    } */
+    }
 
     switch (event.target.type) {
         case ('checkbox'):

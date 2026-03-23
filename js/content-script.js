@@ -3,13 +3,17 @@
 const DEBUG = false;
 const TRACE = DEBUG && false;
 
+const SearchImgBtn = true;
+
 const VERSIONS = {
     FEB18: 'FEB18',
     JUL19: 'JUL19',
     OCT19: 'OCT19'
 };
 
-var images = new Object();
+const OCT19_CONTAINER_SELECTORS = ['.tvh9oe', '.EIehLd', '.fHE6De', '.Z7HyUd'];
+
+var images = {};
 var options;
 
 function toI18n(str) {
@@ -28,52 +32,88 @@ function localiseObject(obj, tag) {
 // Finds the div which contains all required elements
 function getContainer(node) {
     var container, version;
-    [
+
+    var staticSelectors = [
         ['.irc_c[style*="visibility: visible;"][style*="transform: translate3d(0px, 0px, 0px);"]', VERSIONS.FEB18],
         ['.irc_c[data-ved]', VERSIONS.JUL19],
-        ['.tvh9oe[style*="display: block;"]', VERSIONS.OCT19],
-        ['.EIehLd[style*="display: block;"]', VERSIONS.OCT19],
-        ['.fHE6De[style*="display: block;"]', VERSIONS.OCT19]
-    ].forEach(element => {
-        var child = node.querySelector(element[0]);
-        if (child) {
-            [container, version] = [child, element[1]];
-        }
+    ];
+    for (var i = 0; i < OCT19_CONTAINER_SELECTORS.length; i++) {
+        staticSelectors.push([OCT19_CONTAINER_SELECTORS[i], VERSIONS.OCT19]);
+    }
 
-        var closest = node.closest(element[0]);
-        if (closest) {
-            [container, version] = [closest, element[1]];
+    for (const [selector, ver] of staticSelectors) {
+        container = node.closest(selector);
+        if (container) {
+            return [container, ver];
         }
-    });
-    return [container, version];
+    }
+
+    if (DEBUG)
+        console.log('ViewImage: container class name was not found statically!');
+
+    // If no static selector matched, try dynamic lookup
+    let img = node;
+    if (img.tagName !== 'IMG') {
+        img = node.querySelector('img[src][style][jsaction]') || node.closest('img[src][style][jsaction]');
+    }
+
+    if (img && img.tagName === 'IMG') {
+        const dynamicSelectors = [
+            'div[data-lhcontainer]',
+            '[data-lhcontainer]'
+        ];
+
+        for (const selector of dynamicSelectors) {
+            container = img.closest(selector);
+            if (container) {
+                version = VERSIONS.OCT19;
+                return [container, version];
+            }
+        }
+    }
+
+    if (DEBUG)
+        console.log('ViewImage: container class name was not found dynamically!');
+
+    return [null, null];
 }
 
 
-// Finds and deletes all extension related elements.
-function clearExtElements() {
-    // Remove previously generated elements
-    var oldExtensionElements = document.querySelectorAll('.vi_ext_addon');
+function clearExtElements(container) {
+    var oldExtensionElements = container.querySelectorAll('.vi_ext_addon');
     for (var element of oldExtensionElements) {
         element.remove();
     }
 }
 
 
-// Returns true if the node is visible
-function nodeIsVisible(node) {
-    const rect = node.getBoundingClientRect();
-    return (
-        rect.top >= 0 &&
-        rect.left >= 0 &&
-        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
-        rect.right <= (window.innerWidth || document.documentElement.clientWidth) &&
-        rect.width > 0 &&
-        rect.height > 0
-    );
+// Dynamically discovers the visit button class name by traversing DOM relative to an image element
+function findVisitButtonClassName() {
+    var vbClassName = null;
+    var imgEl = document.querySelector('img[src][style][jsaction]');
+    if (!imgEl) return null;
+
+    var traversals = [
+        function (el) { return el.parentElement.parentElement.parentElement.nextSibling.querySelector('div a span').parentElement.parentElement; },
+        function (el) { return el.parentElement.parentElement.parentElement.nextSibling.nextSibling.querySelector('div a span').parentElement.parentElement; },
+        function (el) { return el.parentElement.parentElement.parentElement.nextSibling.querySelector('div a div').parentElement; },
+        function (el) { return el.parentElement.parentElement.nextSibling.querySelector('div a span').parentElement.parentElement; },
+        function (el) { return el.parentElement.parentElement.nextSibling.nextSibling.querySelector('div a span').parentElement.parentElement; },
+    ];
+
+    for (var i = 0; i < traversals.length; i++) {
+        try {
+            vbClassName = traversals[i](imgEl).className.split(' ')[0];
+        } catch {
+            if (DEBUG)
+                console.log('ViewImage: vbClassName not found via traversal ' + i);
+        }
+    }
+
+    return vbClassName;
 }
 
 
-// Returns the image URL
 function findImageURL(container, version) {
 
     var image = null;
@@ -86,11 +126,16 @@ function findImageURL(container, version) {
             var iframe = container.querySelector('iframe.irc_ifr');
             if (!iframe)
                 return findImageURL(container, VERSIONS.FEB18);
-            image = iframe.contentDocument.querySelector('img#irc_mi');
+            try {
+                image = iframe.contentDocument.querySelector('img#irc_mi');
+            } catch {
+                if (DEBUG)
+                    console.log('ViewImage: Could not access iframe content');
+            }
             break;
         case VERSIONS.OCT19:
             image = container.querySelector('img[src][style][jsaction]');
-            if (image.src in images) {
+            if (image && image.src in images) {
                 return images[image.src];
             }
     }
@@ -99,7 +144,6 @@ function findImageURL(container, version) {
     if (image === null || image.src === '' || image.src.startsWith('data')) {
         var thumbnail = document.querySelector('img[name="' + container.dataset.itemId + '"]');
         if (thumbnail === null) {
-            // If no thumbnail found, try getting image from URL
             var url = new URL(window.location);
             var imgLink = url.searchParams.get('imgurl');
             if (imgLink) {
@@ -118,7 +162,6 @@ function findImageURL(container, version) {
         if (target_image) {
             var link = target_image.closest('a');
             if (link) {
-                // Some extensions replace google image links with their original links
                 if (link.href.match(/^[a-z]+:\/\/(?:www\.)?google\.[^/]*\/imgres\?/)) {
                     var link_url = new URL(link.href);
                     var new_imgLink = link_url.searchParams.get('imgurl');
@@ -138,9 +181,8 @@ function findImageURL(container, version) {
 
 }
 
-function addViewImageButton(container, node, imageURL, version) {
+function addViewImageButton(container, imageURL, version, vbClassName) {
 
-    // get the visit button
     var visitButton;
     switch (version) {
         case VERSIONS.FEB18:
@@ -150,19 +192,7 @@ function addViewImageButton(container, node, imageURL, version) {
             visitButton = container.querySelector('a.irc_hol[href]');
             break;
         case VERSIONS.OCT19:
-            var nodeRoot = node.parentElement.parentElement;
-
-            var visitButtons = [
-                nodeRoot?.parentElement?.nextSibling?.querySelector?.('a > div > span + svg')?.parentElement?.parentElement,
-                nodeRoot?.parentElement?.nextSibling?.nextSibling?.querySelector?.('a > div > span + svg')?.parentElement?.parentElement,
-                nodeRoot?.nextSibling?.nextSibling?.querySelector?.('a > div > span + svg')?.parentElement?.parentElement,
-                nodeRoot?.querySelector?.(':scope > div:not([aria-hidden])')?.querySelector?.('a > div > span + svg')?.parentElement?.parentElement, // Facebook results are different
-            ];
-
-            if (DEBUG)
-                console.log('Possible visit buttons:', visitButtons);
-
-            visitButton = visitButtons.find(button => button !== null && button !== undefined && button.tagName == 'A');
+            visitButton = container.querySelector('.ZsbmCf[href], a.J2oL9c, a.jAklOc, a.uZ49bd, a.e0XTue, a.kWgFk, a.j7ZI7c' + (vbClassName ? ', a.' + vbClassName : ''));
             break;
     }
 
@@ -172,15 +202,9 @@ function addViewImageButton(container, node, imageURL, version) {
         return false;
     }
 
-    if (DEBUG)
-        console.log('ViewImage: Adding View-Image button to node: ', node, ' with visit button: ', visitButton);
-
-
-    // Create the view image button
     var viewImageButton = visitButton.cloneNode(true);
     viewImageButton.classList.add('vi_ext_addon');
 
-    // Set the view image button url
     var viewImageLink;
     switch (version) {
         case VERSIONS.FEB18:
@@ -191,16 +215,8 @@ function addViewImageButton(container, node, imageURL, version) {
     }
 
     if (imageURL && !imageURL.startsWith('https://encrypted-tbn0.gstatic.com')) {
-        if (DEBUG)
-            console.log('ViewImage: Adding View-Image button with URL: ', imageURL);
-
         viewImageLink.href = imageURL;
     } else {
-        // Display button as disabled if no image was found
-
-        if (DEBUG)
-            console.log('ViewImage: Adding Disabled View-Image button with no URL');
-
         viewImageLink.style = 'pointer-events: none;';
         viewImageLink.title = 'No full-sized image was found.';
 
@@ -210,13 +226,12 @@ function addViewImageButton(container, node, imageURL, version) {
         }
     }
 
-    if (version == VERSIONS.OCT19) {
+    if (version === VERSIONS.OCT19) {
         viewImageLink.removeAttribute('jsaction');
     }
 
     viewImageLink.removeAttribute('target');
 
-    // Set additional options
     if (options['open-in-new-tab']) {
         viewImageLink.setAttribute('target', '_blank');
     }
@@ -224,11 +239,10 @@ function addViewImageButton(container, node, imageURL, version) {
         viewImageLink.setAttribute('rel', 'noreferrer');
     }
 
-    if (imageURL.startsWith('data')) {
+    if (imageURL && imageURL.startsWith('data')) {
         viewImageButton.setAttribute('download', '');
     }
 
-    // Set the view image button text
     var viewImageButtonText;
     switch (version) {
         case VERSIONS.FEB18:
@@ -248,23 +262,6 @@ function addViewImageButton(container, node, imageURL, version) {
         localiseObject(viewImageButtonText, '__MSG_viewImage__');
     }
 
-    // Remove globe icon if not wanted
-    // Deprecated, new google image search doesn't have globe icon
-    /* if (!options['show-globe-icon']) {
-        switch (version) {
-            case VERSIONS.FEB18:
-                viewImageButton.querySelector('.RL3J9c').remove();
-                break;
-            case VERSIONS.JUL19:
-                viewImageButton.querySelector('.aDEWOd').remove();
-                break;
-            case VERSIONS.OCT19:
-                viewImageButton.querySelector('.XeEBj.AJkoub').remove();
-                break;
-        }
-    } */
-
-    // Place the view image button
     visitButton.parentElement.insertBefore(viewImageButton, visitButton);
     visitButton.parentElement.insertBefore(visitButton, viewImageButton);
 
@@ -272,8 +269,7 @@ function addViewImageButton(container, node, imageURL, version) {
 }
 
 
-// Deprecared, google has removed the endpoints required for this to work
-/* function addSearchImageButton(container, imageURL, version) {
+function addSearchImageButton(container, imageURL, version, vbClassName) {
 
     var link;
     switch (version) {
@@ -284,65 +280,61 @@ function addViewImageButton(container, node, imageURL, version) {
             link = container.querySelector('.irc_ft > a.irc_help');
             break;
         case VERSIONS.OCT19:
-            link = container.querySelector('.PvkmDc, .qnLx5b, .zSA7pe, .uZ49bd, .e0XTue, .kWgFk, .j7ZI7c');
+            link = container.querySelector('.PvkmDc, .qnLx5b, .zSA7pe, .uZ49bd, .e0XTue, .kWgFk, .j7ZI7c' + (vbClassName ? ', .' + vbClassName : ''));
             break;
     }
 
-    if (link === null) {
+    if (!link) {
         if (DEBUG)
-            console.log('ViewImage: Adding Search-By-Image buttonn failed, link was not found.');
+            console.log('ViewImage: Adding Search-By-Image button failed, link was not found.');
         return;
     }
 
-    // Create the search by image button
     var searchImageButton = link.cloneNode(true);
     searchImageButton.classList.add('vi_ext_addon');
 
-    // Set the more sizes button text
     var searchImageButtonText;
     switch (version) {
         case VERSIONS.FEB18:
             searchImageButtonText = container.querySelector('.irc_ho');
             break;
         case VERSIONS.JUL19:
-            searchImageButtonText = searchImageButton.querySelector('span');
-            break;
         case VERSIONS.OCT19:
-            searchImageButtonText = searchImageButton;
+            searchImageButtonText = searchImageButton.querySelector('span');
             break;
     }
 
     if (options['manually-set-button-text']) {
         searchImageButtonText.innerText = options['button-text-search-by-image'];
     } else {
-        localiseObject(searchImageButtonText, '__MSG_searchImage__');
+        searchImageButtonText.innerText = '';
+        var lensButton = document.createElement('img');
+        lensButton.style.marginTop = '5px';
+        lensButton.style.width = '23px';
+        lensButton.src = 'https://fonts.gstatic.com/s/i/productlogos/lens_2023q2/v2/192px.svg';
+        lensButton.alt = 'Search by image';
+        searchImageButtonText.appendChild(lensButton);
     }
 
-    // Set the search by image button url
-    searchImageButton.href = '/uploadbyurl?url=' + encodeURIComponent(imageURL);
+    searchImageButton.href = 'https://lens.google.com/uploadbyurl?url=' + encodeURIComponent(imageURL);
 
-    // Set additional options
     if (options['open-search-by-in-new-tab']) {
         searchImageButton.setAttribute('target', '_blank');
     }
 
-    // Place the more sizes button
     link.parentElement.insertBefore(searchImageButton, link);
     link.parentElement.insertBefore(link, searchImageButton);
 
-} */
+}
 
 
-// Adds links to an object
 function addLinks(node) {
 
     if (DEBUG)
         console.log('ViewImage: Trying to add links to node: ', node);
 
-    // Find the container
     var [container, version] = getContainer(node);
 
-    // Return if no container was found
     if (!container) {
         if (DEBUG)
             console.log('ViewImage: Adding links failed, container was not found.');
@@ -352,24 +344,24 @@ function addLinks(node) {
     if (DEBUG)
         console.log('ViewImage: Assuming site version: ', version);
 
-    // Clear any old extension elements
-    clearExtElements();
+    clearExtElements(container);
 
-    // Find the image url
     var imageURL = findImageURL(container, version);
 
-    // Deprecated, extension now shows disabled button if URL is not found
-    // Return if image was not found
-    // if (!imageURL) {
-    //     if (DEBUG)
-    //         console.log('ViewImage: Adding links failed, image was not found.');
-    //     return false;
-    // }
+    if (!imageURL) {
+        if (DEBUG)
+            console.log('ViewImage: Adding links failed, image was not found.');
+        return false;
+    }
 
-    return addViewImageButton(container, node, imageURL, version);
+    // Compute vbClassName once for both buttons
+    var vbClassName = (version === VERSIONS.OCT19) ? findVisitButtonClassName() : null;
 
-    // Deprecated, see comment on function definition
-    //addSearchImageButton(container, imageURL, version);
+    addViewImageButton(container, imageURL, version, vbClassName);
+    if (SearchImgBtn)
+        addSearchImageButton(container, imageURL, version, vbClassName);
+
+    return true;
 }
 
 function parseDataSource(array) {
@@ -391,13 +383,12 @@ function parseDataSource(array) {
         }
     }
     catch {
-        // I encountered this alternative so I've added it here
-        // We should probably find a way to do this dynamically
+        // Fallback data structure path
         meta = array[56][1][0][0][1][0];
 
-        for (i = 0; i < meta.length; i++) {
+        for (var j = 0; j < meta.length; j++) {
             try {
-                var data = Object.values(meta[i][0][0])[0];
+                var data = Object.values(meta[j][0][0])[0];
                 images[data[1][2][0]] = data[1][3][0];
             } catch {
                 if (DEBUG)
@@ -426,15 +417,16 @@ function parseDataSourceType1(params) {
 try {
     const start_search = />AF_initDataCallback\(/g;
     const end_search = ');</script>';
+    var htmlContent = document.documentElement.innerHTML;
 
     var success = false;
 
     let match;
-    while (!success && ((match = start_search.exec(document.documentElement.innerHTML)) !== null)) {
+    while (!success && ((match = start_search.exec(htmlContent)) !== null)) {
         var start_index = match.index + match[0].length;
-        var end_index = start_index + document.documentElement.innerHTML.slice(start_index).indexOf(end_search);
+        var end_index = start_index + htmlContent.slice(start_index).indexOf(end_search);
 
-        var params = document.documentElement.innerHTML.slice(start_index, end_index);
+        var params = htmlContent.slice(start_index, end_index);
 
         const ds_search = /key:\s'ds:(\d)'/;
         var ds_match = params.match(ds_search);
@@ -443,8 +435,7 @@ try {
             continue;
         }
 
-        if (ds_match[1] == 1) {
-            // data source 1
+        if (ds_match[1] === '1') {
             parseDataSourceType1(params);
             success = true;
         }
@@ -465,27 +456,40 @@ try {
 }
 
 
-function processNode(node) {
-    var imageNodes = document.querySelectorAll('img[src][style][jsaction]');
-    for (var i = 0; i < imageNodes.length; i++) {
-        var imageNode = imageNodes[i];
-        if (nodeIsVisible(imageNode) && node.contains(imageNode) && addLinks(node)) {
-            return;
-        }
-    }
-}
-
 // Define the mutation observers
-var observer = new MutationObserver((mutations) => {
+var observer = new MutationObserver(function (mutations) {
+
     if (TRACE)
         console.log('ViewImage: Mutations detected: ', mutations);
 
+    var node, imgClassName;
+    try {
+        imgClassName = document.querySelector('img[src][style][jsaction]').className.split(' ')[0];
+    } catch {
+        imgClassName = null;
+    }
     for (var mutation of mutations) {
-        if (mutation.type === 'attributes') {
-            processNode(mutation.target);
-        } else if (mutation.type === 'childList') {
-            for (var node of mutation.addedNodes) {
-                processNode(node);
+        if (mutation.addedNodes && mutation.addedNodes.length > 0) {
+            for (node of mutation.addedNodes) {
+                if (node.classList) {
+                    var classesToCheck = ['irc_mi', 'irc_mut', 'irc_ris'];
+                    if (imgClassName) classesToCheck.push(imgClassName);
+                    if (classesToCheck.some(className => node.classList.contains(className))) {
+                        addLinks(node);
+                    }
+                }
+            }
+        }
+
+        if (imgClassName && mutation.target.classList && mutation.target.classList.contains(imgClassName)) {
+            node = null;
+            for (var i = 0; i < OCT19_CONTAINER_SELECTORS.length; i++) {
+                node = mutation.target.closest(OCT19_CONTAINER_SELECTORS[i]);
+                if (node) break;
+            }
+
+            if (node && !node.hasAttribute('aria-hidden')) {
+                addLinks(node);
             }
         }
     }
@@ -493,7 +497,7 @@ var observer = new MutationObserver((mutations) => {
 
 // Get options and start adding links
 chrome.storage.sync.get(['options', 'defaultOptions'], function (storage) {
-    options = Object.assign(storage.defaultOptions, storage.options);
+    options = Object.assign({}, storage.defaultOptions || {}, storage.options || {});
 
     if (DEBUG)
         console.log('ViewImage: Initialising observer...');
@@ -501,7 +505,8 @@ chrome.storage.sync.get(['options', 'defaultOptions'], function (storage) {
     observer.observe(document.body, {
         childList: true,
         subtree: true,
-        attributes: true
+        attributes: true,
+        attributeFilter: ['class', 'src', 'style']
     });
 });
 
