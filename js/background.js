@@ -12,13 +12,11 @@ function toI18n(str) {
 const defaultOptions = {
     'open-in-new-tab': true,
     'open-search-by-in-new-tab': true,
-    //'hide-images-subject-to-copyright': false,
     'manually-set-button-text': false,
     'no-referrer': false,
     'button-text-view-image': '',
     'button-text-search-by-image': '',
     'context-menu-search-by-image': true,
-    //'context-menu-search-by-image-new-tab': false,
 };
 
 // Save default options to storage

@@ -3,8 +3,6 @@
 const DEBUG = false;
 const TRACE = DEBUG && false;
 
-const SearchImgBtn = true;
-
 const VERSIONS = {
     FEB18: 'FEB18',
     JUL19: 'JUL19',
@@ -59,7 +57,6 @@ function getContainer(node) {
 
     if (img && img.tagName === 'IMG') {
         const dynamicSelectors = [
-            'div[data-lhcontainer]',
             '[data-lhcontainer]'
         ];
 
@@ -104,6 +101,7 @@ function findVisitButtonClassName() {
     for (var i = 0; i < traversals.length; i++) {
         try {
             vbClassName = traversals[i](imgEl).className.split(' ')[0];
+            break;
         } catch {
             if (DEBUG)
                 console.log('ViewImage: vbClassName not found via traversal ' + i);
@@ -358,8 +356,7 @@ function addLinks(node) {
     var vbClassName = (version === VERSIONS.OCT19) ? findVisitButtonClassName() : null;
 
     addViewImageButton(container, imageURL, version, vbClassName);
-    if (SearchImgBtn)
-        addSearchImageButton(container, imageURL, version, vbClassName);
+    addSearchImageButton(container, imageURL, version, vbClassName);
 
     return true;
 }
