@@ -43,4 +43,12 @@ export default [{
         semi: ["error", "always"],
         "eol-last": "error",
     },
+}, {
+    files: ["tests/**/*.mjs", "playwright.config.mjs"],
+
+    languageOptions: {
+        globals: {
+            ...globals.node,
+        },
+    },
 }];

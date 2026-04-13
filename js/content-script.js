@@ -23,7 +23,7 @@ function toI18n(str) {
 
 function localiseObject(obj, tag) {
     var msg = toI18n(tag);
-    if (msg != tag) obj.innerHTML = msg;
+    if (msg) obj.textContent = msg;
 }
 
 
@@ -184,7 +184,8 @@ function addViewImageButton(container, imageURL, version, vbClassName) {
     var visitButton;
     switch (version) {
         case VERSIONS.FEB18:
-            visitButton = container.querySelector('td > a.irc_vpl[href]').parentElement;
+            var feb18VisitLink = container.querySelector('td > a.irc_vpl[href]');
+            visitButton = feb18VisitLink && feb18VisitLink.parentElement;
             break;
         case VERSIONS.JUL19:
             visitButton = container.querySelector('a.irc_hol[href]');
@@ -233,9 +234,10 @@ function addViewImageButton(container, imageURL, version, vbClassName) {
     if (options['open-in-new-tab']) {
         viewImageLink.setAttribute('target', '_blank');
     }
-    if (options['no-referrer']) {
-        viewImageLink.setAttribute('rel', 'noreferrer');
-    }
+    var relParts = [];
+    if (options['open-in-new-tab']) relParts.push('noopener');
+    if (options['no-referrer']) relParts.push('noreferrer');
+    if (relParts.length) viewImageLink.setAttribute('rel', relParts.join(' '));
 
     if (imageURL && imageURL.startsWith('data')) {
         viewImageButton.setAttribute('download', '');
@@ -252,6 +254,10 @@ function addViewImageButton(container, imageURL, version, vbClassName) {
         case VERSIONS.OCT19:
             viewImageButtonText = viewImageButton.querySelector('.pM4Snf, .KSvtLc, .Pw5kW, .q7UPLe, .K8E1Be, .pFBf7b, span');
             break;
+    }
+
+    if (!viewImageButtonText) {
+        return false;
     }
 
     if (options['manually-set-button-text']) {
@@ -302,6 +308,10 @@ function addSearchImageButton(container, imageURL, version, vbClassName) {
             break;
     }
 
+    if (!searchImageButtonText) {
+        return false;
+    }
+
     if (options['manually-set-button-text']) {
         searchImageButtonText.innerText = options['button-text-search-by-image'];
     } else {
@@ -309,7 +319,7 @@ function addSearchImageButton(container, imageURL, version, vbClassName) {
         var lensButton = document.createElement('img');
         lensButton.style.marginTop = '5px';
         lensButton.style.width = '23px';
-        lensButton.src = 'https://fonts.gstatic.com/s/i/productlogos/lens_2023q2/v2/192px.svg';
+        lensButton.src = chrome.runtime.getURL('img/lens.svg');
         lensButton.alt = 'Search by image';
         searchImageButtonText.appendChild(lensButton);
     }
@@ -318,6 +328,7 @@ function addSearchImageButton(container, imageURL, version, vbClassName) {
 
     if (options['open-search-by-in-new-tab']) {
         searchImageButton.setAttribute('target', '_blank');
+        searchImageButton.setAttribute('rel', 'noopener');
     }
 
     link.parentElement.insertBefore(searchImageButton, link);
@@ -506,31 +517,3 @@ chrome.storage.sync.get(['options', 'defaultOptions'], function (storage) {
         attributeFilter: ['class', 'src', 'style']
     });
 });
-
-// inject CSS into document
-if (DEBUG)
-    console.log('ViewImage: Injecting CSS...');
-
-var customStyle = document.createElement('style');
-customStyle.innerText = `
-.irc_dsh>.irc_hol.vi_ext_addon,
-.irc_ft>.irc_help.vi_ext_addon,
-.PvkmDc.vi_ext_addon,
-.qnLx5b.vi_ext_addon
-{
-margin: 0 4pt!important
-}
-
-.irc_hol.vi_ext_addon
-{
-flex-grow:0!important
-}
-
-.zSA7pe[href^="/searchbyimage"] {
-margin-left: 4px;
-}
-
-.ZsbmCf.vi_ext_addon{
-flex-grow:0
-}`;
-document.head.appendChild(customStyle);

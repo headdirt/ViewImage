@@ -62,7 +62,10 @@ const show = function (options) {
 // Reset to defaults
 const reset = function () {
     save(defaultOptions)
-        .then(() => show(defaultOptions));
+        .then(() => {
+            show(defaultOptions);
+            update_context_menu(defaultOptions['context-menu-search-by-image']);
+        });
 };
 
 
@@ -76,7 +79,13 @@ chrome.storage.sync.get('defaultOptions', function (storage) {
 });
 
 const update_context_menu = function (enabled) {
-    if (enabled) {
+    chrome.contextMenus.remove('ViewImage-SearchByImage', function () {
+        void chrome.runtime.lastError; // suppress "no such menu item" warning
+
+        if (!enabled) {
+            return;
+        }
+
         chrome.contextMenus.create(
             {
                 'id': 'ViewImage-SearchByImage',
@@ -84,9 +93,7 @@ const update_context_menu = function (enabled) {
                 'contexts': ['image'],
             }
         );
-    } else {
-        chrome.contextMenus.remove('ViewImage-SearchByImage');
-    }
+    });
 };
 
 // On change, save

@@ -1,3 +1,5 @@
 node_modules/
-package*.json
+test-results/
+.tmp-playwright-profile/
+dist/
 *.log

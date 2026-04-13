@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="Search by image">
+    <path fill="#4285f4" d="M40 72a32 32 0 0 1 32-32h18V24H72a48 48 0 0 0-48 48v18h16V72z"/>
+    <path fill="#34a853" d="M120 40a32 32 0 0 1 32 32v18h16V72a48 48 0 0 0-48-48h-18v16h18z"/>
+    <path fill="#fbbc04" d="M152 120a32 32 0 0 1-32 32h-18v16h18a48 48 0 0 0 48-48v-18h-16v18z"/>
+    <path fill="#ea4335" d="M72 152a32 32 0 0 1-32-32v-18H24v18a48 48 0 0 0 48 48h18v-16H72z"/>
+    <circle cx="96" cy="96" r="30" fill="#4285f4"/>
+    <circle cx="128" cy="64" r="12" fill="#34a853"/>
+</svg>

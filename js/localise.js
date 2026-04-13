@@ -8,7 +8,7 @@ function toI18n(str) {
 
 function localiseObject(obj, tag) {
     var msg = toI18n(tag);
-    if (msg != tag) obj.innerHTML = msg;
+    if (msg) obj.textContent = msg;
 }
 
 var data = document.querySelectorAll('[data-localise]');
