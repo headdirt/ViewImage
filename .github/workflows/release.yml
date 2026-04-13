@@ -1,0 +1,32 @@
+name: Build Release Artifact
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-node@v3
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Lint
+      run: |
+        npm run lint
+        npm run lint:extension
+
+    - name: Build extension package
+      run: npm run build
+
+    - name: Upload package artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: view-image-extension
+        path: dist/*.zip
