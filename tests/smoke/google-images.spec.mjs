@@ -10,9 +10,11 @@ test('adds View image controls on Google Images', async () => {
     test.skip(process.env.RUN_EXTENSION_SMOKE !== '1', 'Set RUN_EXTENSION_SMOKE=1 to run the live browser smoke test.');
 
     const userDataDir = path.join(process.cwd(), '.tmp-playwright-profile');
-    const browserName = process.env.PLAYWRIGHT_BROWSER_CHANNEL || 'chrome';
+    const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+    const browserName = process.env.PLAYWRIGHT_BROWSER_CHANNEL || (executablePath ? undefined : 'chrome');
     const context = await chromium.launchPersistentContext(userDataDir, {
         channel: browserName,
+        executablePath,
         headless: false,
         args: [
             `--disable-extensions-except=${extensionPath}`,

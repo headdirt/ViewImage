@@ -42,6 +42,8 @@ npm run lint
 npm run lint:extension
 ```
 
+If you edit the TLD list or manifest structure, run `npm run manifest`.
+
 Build a release zip:
 
 ```sh

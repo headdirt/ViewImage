@@ -1,12 +1,6 @@
-.irc_dsh>.irc_hol.vi_ext_addon,
-.irc_ft>.irc_help.vi_ext_addon,
 .PvkmDc.vi_ext_addon,
 .qnLx5b.vi_ext_addon {
-    margin: 0 4pt!important;
-}
-
-.irc_hol.vi_ext_addon {
-    flex-grow: 0!important;
+    margin: 0 4pt !important;
 }
 
 .zSA7pe[href^="/searchbyimage"] {

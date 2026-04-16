@@ -1,0 +1,68 @@
+{
+    "manifest_version": 3,
+    "name": "__MSG_appName__",
+    "version": "5.4.1",
+    "description": "__MSG_appDesc__",
+    "default_locale": "en",
+    "icons": {
+        "128": "icon/128.png",
+        "48": "icon/48.png",
+        "38": "icon/38.png",
+        "19": "icon/19.png",
+        "16": "icon/16.png"
+    },
+    "author": "Joshua Butt",
+    "action": {
+        "default_icon": "icon/48.png",
+        "default_popup": "html/popup.html"
+    },
+    "permissions": [
+        "contextMenus",
+        "storage"
+    ],
+    "options_ui": {
+        "page": "html/options.html"
+    },
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "{287dcf75-bec6-4eec-b4f6-71948a2eea29}",
+            "data_collection_permissions": {
+                "required": [
+                    "none"
+                ]
+            }
+        }
+    },
+    "background": {
+        "service_worker": "js/background.js",
+        "scripts": [
+            "js/i18n.js",
+            "js/background.js"
+        ]
+    },
+    "content_scripts": [
+        {
+            "js": [
+                "js/i18n.js",
+                "js/content-script.js"
+            ],
+            "css": [
+                "css/content-script.css"
+            ],
+            "matches": "__GOOGLE_TLD_MATCHES__",
+            "include_globs": [
+                "*tbm=isch*",
+                "*imgres?*",
+                "*udm=2*"
+            ]
+        }
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "img/lens.svg"
+            ],
+            "matches": "__GOOGLE_TLD_MATCHES__"
+        }
+    ]
+}

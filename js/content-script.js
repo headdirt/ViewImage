@@ -3,169 +3,115 @@
 const DEBUG = false;
 const TRACE = DEBUG && false;
 
-const VERSIONS = {
-    FEB18: 'FEB18',
-    JUL19: 'JUL19',
-    OCT19: 'OCT19'
-};
+const debug = (...args) => { if (DEBUG) console.log('ViewImage:', ...args); };
+const trace = (...args) => { if (TRACE) console.log('ViewImage:', ...args); };
 
-const OCT19_CONTAINER_SELECTORS = ['.tvh9oe', '.EIehLd', '.fHE6De', '.Z7HyUd'];
+// Modern Google Images layout (Oct 2019 onward)
+const CONTAINER_SELECTORS = ['.tvh9oe', '.EIehLd', '.fHE6De', '.Z7HyUd'];
+const DYNAMIC_CONTAINER_SELECTORS = ['[data-lhcontainer]'];
 
-var images = {};
-var options;
+// Candidate class names for the "Visit" button Google renders next to the
+// preview. Google rotates these regularly; dynamic discovery covers the rest.
+const VISIT_BUTTON_SELECTOR =
+    '.ZsbmCf[href], a.J2oL9c, a.jAklOc, a.uZ49bd, a.e0XTue, a.kWgFk, a.j7ZI7c';
+const SEARCH_LINK_SELECTOR =
+    '.PvkmDc, .qnLx5b, .zSA7pe, .uZ49bd, .e0XTue, .kWgFk, .j7ZI7c';
+const BUTTON_TEXT_SELECTOR =
+    '.pM4Snf, .KSvtLc, .Pw5kW, .q7UPLe, .K8E1Be, .pFBf7b, span';
 
-function toI18n(str) {
-    return str.replace(/__MSG_(\w+)__/g, function (_, v1) {
-        return v1 ? chrome.i18n.getMessage(v1) : '';
-    });
-}
+const IMG_SELECTOR = 'img[src][style][jsaction]';
+const MUTATION_IMG_CLASSES = ['irc_mi', 'irc_mut', 'irc_ris'];
 
+const images = {};
+let options;
 
-function localiseObject(obj, tag) {
-    var msg = toI18n(tag);
-    if (msg) obj.textContent = msg;
-}
+// --- DOM discovery ------------------------------------------------------
 
-
-// Finds the div which contains all required elements
 function getContainer(node) {
-    var container, version;
-
-    var staticSelectors = [
-        ['.irc_c[style*="visibility: visible;"][style*="transform: translate3d(0px, 0px, 0px);"]', VERSIONS.FEB18],
-        ['.irc_c[data-ved]', VERSIONS.JUL19],
-    ];
-    for (var i = 0; i < OCT19_CONTAINER_SELECTORS.length; i++) {
-        staticSelectors.push([OCT19_CONTAINER_SELECTORS[i], VERSIONS.OCT19]);
+    for (const selector of CONTAINER_SELECTORS) {
+        const container = node.closest(selector);
+        if (container) return container;
     }
 
-    for (const [selector, ver] of staticSelectors) {
-        container = node.closest(selector);
-        if (container) {
-            return [container, ver];
-        }
-    }
+    debug('container class name was not found statically');
 
-    if (DEBUG)
-        console.log('ViewImage: container class name was not found statically!');
-
-    // If no static selector matched, try dynamic lookup
     let img = node;
     if (img.tagName !== 'IMG') {
-        img = node.querySelector('img[src][style][jsaction]') || node.closest('img[src][style][jsaction]');
+        img = node.querySelector(IMG_SELECTOR) || node.closest(IMG_SELECTOR);
     }
 
     if (img && img.tagName === 'IMG') {
-        const dynamicSelectors = [
-            '[data-lhcontainer]'
-        ];
-
-        for (const selector of dynamicSelectors) {
-            container = img.closest(selector);
-            if (container) {
-                version = VERSIONS.OCT19;
-                return [container, version];
-            }
+        for (const selector of DYNAMIC_CONTAINER_SELECTORS) {
+            const container = img.closest(selector);
+            if (container) return container;
         }
     }
 
-    if (DEBUG)
-        console.log('ViewImage: container class name was not found dynamically!');
-
-    return [null, null];
+    debug('container class name was not found dynamically');
+    return null;
 }
-
 
 function clearExtElements(container) {
-    var oldExtensionElements = container.querySelectorAll('.vi_ext_addon');
-    for (var element of oldExtensionElements) {
-        element.remove();
+    for (const el of container.querySelectorAll('.vi_ext_addon')) {
+        el.remove();
     }
 }
 
-
-// Dynamically discovers the visit button class name by traversing DOM relative to an image element
-function findVisitButtonClassName() {
-    var vbClassName = null;
-    var imgEl = document.querySelector('img[src][style][jsaction]');
+// Dynamically discover the visit-button class name by traversing the DOM
+// relative to an image element. Google's obfuscated class names change, so we
+// locate the button structurally instead of by static class list.
+function findVisitButtonClassName(imgEl) {
     if (!imgEl) return null;
 
-    var traversals = [
-        function (el) { return el.parentElement.parentElement.parentElement.nextSibling.querySelector('div a span').parentElement.parentElement; },
-        function (el) { return el.parentElement.parentElement.parentElement.nextSibling.nextSibling.querySelector('div a span').parentElement.parentElement; },
-        function (el) { return el.parentElement.parentElement.parentElement.nextSibling.querySelector('div a div').parentElement; },
-        function (el) { return el.parentElement.parentElement.nextSibling.querySelector('div a span').parentElement.parentElement; },
-        function (el) { return el.parentElement.parentElement.nextSibling.nextSibling.querySelector('div a span').parentElement.parentElement; },
+    const traversals = [
+        el => el.parentElement.parentElement.parentElement.nextSibling.querySelector('div a span').parentElement.parentElement,
+        el => el.parentElement.parentElement.parentElement.nextSibling.nextSibling.querySelector('div a span').parentElement.parentElement,
+        el => el.parentElement.parentElement.parentElement.nextSibling.querySelector('div a div').parentElement,
+        el => el.parentElement.parentElement.nextSibling.querySelector('div a span').parentElement.parentElement,
+        el => el.parentElement.parentElement.nextSibling.nextSibling.querySelector('div a span').parentElement.parentElement,
     ];
 
-    for (var i = 0; i < traversals.length; i++) {
+    for (let i = 0; i < traversals.length; i++) {
         try {
-            vbClassName = traversals[i](imgEl).className.split(' ')[0];
-            break;
+            return traversals[i](imgEl).className.split(' ')[0];
         } catch {
-            if (DEBUG)
-                console.log('ViewImage: vbClassName not found via traversal ' + i);
+            debug(`vbClassName not found via traversal ${i}`);
         }
     }
 
-    return vbClassName;
+    return null;
 }
 
-
-function findImageURL(container, version) {
-
-    var image = null;
-
-    switch (version) {
-        case VERSIONS.FEB18:
-            image = container.querySelector('img[src]#irc_mi, img[alt^="Image result"][src]:not([src^="https://encrypted-tbn"]).irc_mut, img[src].irc_mi');
-            break;
-        case VERSIONS.JUL19:
-            var iframe = container.querySelector('iframe.irc_ifr');
-            if (!iframe)
-                return findImageURL(container, VERSIONS.FEB18);
-            try {
-                image = iframe.contentDocument.querySelector('img#irc_mi');
-            } catch {
-                if (DEBUG)
-                    console.log('ViewImage: Could not access iframe content');
-            }
-            break;
-        case VERSIONS.OCT19:
-            image = container.querySelector('img[src][style][jsaction]');
-            if (image && image.src in images) {
-                return images[image.src];
-            }
+function findImageURL(container) {
+    let image = container.querySelector(IMG_SELECTOR);
+    if (image && image.src in images) {
+        return images[image.src];
     }
 
     // Override url for images using base64 embeds
-    if (image === null || image.src === '' || image.src.startsWith('data')) {
-        var thumbnail = document.querySelector('img[name="' + container.dataset.itemId + '"]');
-        if (thumbnail === null) {
-            var url = new URL(window.location);
-            var imgLink = url.searchParams.get('imgurl');
-            if (imgLink) {
-                return imgLink;
-            }
+    if (!image || image.src === '' || image.src.startsWith('data')) {
+        const thumbnail = document.querySelector(`img[name="${container.dataset.itemId}"]`);
+        if (!thumbnail) {
+            const url = new URL(window.location);
+            const imgLink = url.searchParams.get('imgurl');
+            if (imgLink) return imgLink;
         } else {
-            var meta = thumbnail.closest('.rg_bx').querySelector('.rg_meta');
-            var metadata = JSON.parse(meta.innerHTML);
+            const meta = thumbnail.closest('.rg_bx').querySelector('.rg_meta');
+            const metadata = JSON.parse(meta.innerHTML);
             return metadata.ou;
         }
     }
 
     // If the above doesn't work, use the link in related images to find it
-    if (image === null || image.src === '' || image.src.startsWith('data')) {
-        var target_image = container.querySelector('img.target_image');
-        if (target_image) {
-            var link = target_image.closest('a');
+    if (!image || image.src === '' || image.src.startsWith('data')) {
+        const targetImage = container.querySelector('img.target_image');
+        if (targetImage) {
+            const link = targetImage.closest('a');
             if (link) {
                 if (link.href.match(/^[a-z]+:\/\/(?:www\.)?google\.[^/]*\/imgres\?/)) {
-                    var link_url = new URL(link.href);
-                    var new_imgLink = link_url.searchParams.get('imgurl');
-                    if (new_imgLink) {
-                        return new_imgLink;
-                    }
+                    const linkUrl = new URL(link.href);
+                    const newImgLink = linkUrl.searchParams.get('imgurl');
+                    if (newImgLink) return newImgLink;
                 } else {
                     return link.href;
                 }
@@ -173,45 +119,23 @@ function findImageURL(container, version) {
         }
     }
 
-    if (image) {
-        return image.src;
-    }
-
+    return image ? image.src : null;
 }
 
-function addViewImageButton(container, imageURL, version, vbClassName) {
+// --- Button injection ---------------------------------------------------
 
-    var visitButton;
-    switch (version) {
-        case VERSIONS.FEB18:
-            var feb18VisitLink = container.querySelector('td > a.irc_vpl[href]');
-            visitButton = feb18VisitLink && feb18VisitLink.parentElement;
-            break;
-        case VERSIONS.JUL19:
-            visitButton = container.querySelector('a.irc_hol[href]');
-            break;
-        case VERSIONS.OCT19:
-            visitButton = container.querySelector('.ZsbmCf[href], a.J2oL9c, a.jAklOc, a.uZ49bd, a.e0XTue, a.kWgFk, a.j7ZI7c' + (vbClassName ? ', a.' + vbClassName : ''));
-            break;
-    }
+function addViewImageButton(container, imageURL, vbClassName) {
+    const selector = VISIT_BUTTON_SELECTOR + (vbClassName ? `, a.${vbClassName}` : '');
+    const visitButton = container.querySelector(selector);
 
     if (!visitButton) {
-        if (DEBUG)
-            console.log('ViewImage: Adding View-Image button failed, visit button was not found.');
+        debug('Adding View-Image button failed, visit button was not found');
         return false;
     }
 
-    var viewImageButton = visitButton.cloneNode(true);
+    const viewImageButton = visitButton.cloneNode(true);
     viewImageButton.classList.add('vi_ext_addon');
-
-    var viewImageLink;
-    switch (version) {
-        case VERSIONS.FEB18:
-            viewImageLink = viewImageButton.querySelector('a');
-            break;
-        default:
-            viewImageLink = viewImageButton;
-    }
+    const viewImageLink = viewImageButton;
 
     if (imageURL && !imageURL.startsWith('https://encrypted-tbn0.gstatic.com')) {
         viewImageLink.href = imageURL;
@@ -219,22 +143,19 @@ function addViewImageButton(container, imageURL, version, vbClassName) {
         viewImageLink.style = 'pointer-events: none;';
         viewImageLink.title = 'No full-sized image was found.';
 
-        var viewImageDiv = viewImageLink.querySelector('div');
+        const viewImageDiv = viewImageLink.querySelector('div');
         if (viewImageDiv) {
             viewImageDiv.style = 'background-color: #707070; border-color: #707070;';
         }
     }
 
-    if (version === VERSIONS.OCT19) {
-        viewImageLink.removeAttribute('jsaction');
-    }
-
+    viewImageLink.removeAttribute('jsaction');
     viewImageLink.removeAttribute('target');
 
     if (options['open-in-new-tab']) {
         viewImageLink.setAttribute('target', '_blank');
     }
-    var relParts = [];
+    const relParts = [];
     if (options['open-in-new-tab']) relParts.push('noopener');
     if (options['no-referrer']) relParts.push('noreferrer');
     if (relParts.length) viewImageLink.setAttribute('rel', relParts.join(' '));
@@ -243,22 +164,8 @@ function addViewImageButton(container, imageURL, version, vbClassName) {
         viewImageButton.setAttribute('download', '');
     }
 
-    var viewImageButtonText;
-    switch (version) {
-        case VERSIONS.FEB18:
-            viewImageButtonText = viewImageButton.querySelector('.Tl8XHc');
-            break;
-        case VERSIONS.JUL19:
-            viewImageButtonText = viewImageButton.querySelector('.irc_ho');
-            break;
-        case VERSIONS.OCT19:
-            viewImageButtonText = viewImageButton.querySelector('.pM4Snf, .KSvtLc, .Pw5kW, .q7UPLe, .K8E1Be, .pFBf7b, span');
-            break;
-    }
-
-    if (!viewImageButtonText) {
-        return false;
-    }
+    const viewImageButtonText = viewImageButton.querySelector(BUTTON_TEXT_SELECTOR);
+    if (!viewImageButtonText) return false;
 
     if (options['manually-set-button-text']) {
         viewImageButtonText.innerText = options['button-text-view-image'];
@@ -272,51 +179,26 @@ function addViewImageButton(container, imageURL, version, vbClassName) {
     return true;
 }
 
-
-function addSearchImageButton(container, imageURL, version, vbClassName) {
-
-    var link;
-    switch (version) {
-        case VERSIONS.FEB18:
-            link = container.querySelector('.irc_dsh > a.irc_hol');
-            break;
-        case VERSIONS.JUL19:
-            link = container.querySelector('.irc_ft > a.irc_help');
-            break;
-        case VERSIONS.OCT19:
-            link = container.querySelector('.PvkmDc, .qnLx5b, .zSA7pe, .uZ49bd, .e0XTue, .kWgFk, .j7ZI7c' + (vbClassName ? ', .' + vbClassName : ''));
-            break;
-    }
+function addSearchImageButton(container, imageURL, vbClassName) {
+    const selector = SEARCH_LINK_SELECTOR + (vbClassName ? `, .${vbClassName}` : '');
+    const link = container.querySelector(selector);
 
     if (!link) {
-        if (DEBUG)
-            console.log('ViewImage: Adding Search-By-Image button failed, link was not found.');
+        debug('Adding Search-By-Image button failed, link was not found');
         return;
     }
 
-    var searchImageButton = link.cloneNode(true);
+    const searchImageButton = link.cloneNode(true);
     searchImageButton.classList.add('vi_ext_addon');
 
-    var searchImageButtonText;
-    switch (version) {
-        case VERSIONS.FEB18:
-            searchImageButtonText = container.querySelector('.irc_ho');
-            break;
-        case VERSIONS.JUL19:
-        case VERSIONS.OCT19:
-            searchImageButtonText = searchImageButton.querySelector('span');
-            break;
-    }
-
-    if (!searchImageButtonText) {
-        return false;
-    }
+    const searchImageButtonText = searchImageButton.querySelector('span');
+    if (!searchImageButtonText) return false;
 
     if (options['manually-set-button-text']) {
         searchImageButtonText.innerText = options['button-text-search-by-image'];
     } else {
         searchImageButtonText.innerText = '';
-        var lensButton = document.createElement('img');
+        const lensButton = document.createElement('img');
         lensButton.style.marginTop = '5px';
         lensButton.style.width = '23px';
         lensButton.src = chrome.runtime.getURL('img/lens.svg');
@@ -324,7 +206,7 @@ function addSearchImageButton(container, imageURL, version, vbClassName) {
         searchImageButtonText.appendChild(lensButton);
     }
 
-    searchImageButton.href = 'https://lens.google.com/uploadbyurl?url=' + encodeURIComponent(imageURL);
+    searchImageButton.href = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(imageURL)}`;
 
     if (options['open-search-by-in-new-tab']) {
         searchImageButton.setAttribute('target', '_blank');
@@ -333,187 +215,171 @@ function addSearchImageButton(container, imageURL, version, vbClassName) {
 
     link.parentElement.insertBefore(searchImageButton, link);
     link.parentElement.insertBefore(link, searchImageButton);
-
 }
 
-
 function addLinks(node) {
+    debug('Trying to add links to node:', node);
 
-    if (DEBUG)
-        console.log('ViewImage: Trying to add links to node: ', node);
-
-    var [container, version] = getContainer(node);
-
+    const container = getContainer(node);
     if (!container) {
-        if (DEBUG)
-            console.log('ViewImage: Adding links failed, container was not found.');
+        debug('Adding links failed, container was not found');
         return false;
     }
-
-    if (DEBUG)
-        console.log('ViewImage: Assuming site version: ', version);
 
     clearExtElements(container);
 
-    var imageURL = findImageURL(container, version);
-
+    const imageURL = findImageURL(container);
     if (!imageURL) {
-        if (DEBUG)
-            console.log('ViewImage: Adding links failed, image was not found.');
+        debug('Adding links failed, image was not found');
         return false;
     }
 
-    // Compute vbClassName once for both buttons
-    var vbClassName = (version === VERSIONS.OCT19) ? findVisitButtonClassName() : null;
+    const imgEl = document.querySelector(IMG_SELECTOR);
+    const vbClassName = findVisitButtonClassName(imgEl);
 
-    addViewImageButton(container, imageURL, version, vbClassName);
-    addSearchImageButton(container, imageURL, version, vbClassName);
+    addViewImageButton(container, imageURL, vbClassName);
+    addSearchImageButton(container, imageURL, vbClassName);
 
     return true;
 }
 
+// --- Data-source parsing ------------------------------------------------
+
 function parseDataSource(array) {
+    debug('Parsing data source...');
 
-    if (DEBUG)
-        console.log('ViewImage: Parsing data source...');
-
-    var meta;
+    let meta;
     try {
         meta = array[31][0][12][2];
-
-        for (var i = 0; i < meta.length; i++) {
+        for (const entry of meta) {
             try {
-                images[meta[i][1][2][0]] = meta[i][1][3][0];
+                images[entry[1][2][0]] = entry[1][3][0];
             } catch {
-                if (DEBUG)
-                    console.log('ViewImage: Skipping image');
+                debug('Skipping image');
             }
         }
-    }
-    catch {
+    } catch {
         // Fallback data structure path
         meta = array[56][1][0][0][1][0];
-
-        for (var j = 0; j < meta.length; j++) {
+        for (const entry of meta) {
             try {
-                var data = Object.values(meta[j][0][0])[0];
+                const data = Object.values(entry[0][0])[0];
                 images[data[1][2][0]] = data[1][3][0];
             } catch {
-                if (DEBUG)
-                    console.log('ViewImage: Skipping image');
+                debug('Skipping image');
             }
         }
     }
 }
 
 function parseDataSourceType1(params) {
-    if (DEBUG)
-        console.log('ViewImage: Parsing data source type 1...');
+    debug('Parsing data source type 1...');
 
-    const data_start_search = /\sdata:\[/;
-    const data_end_search = '], ';
+    const dataStart = /\sdata:\[/;
+    const dataEnd = '], ';
 
-    var match = params.match(data_start_search);
+    const match = params.match(dataStart);
+    const startIndex = match.index + match[0].length - 1;
+    const endIndex = startIndex + params.slice(startIndex).indexOf(dataEnd) + 1;
 
-    var start_index = match.index + match[0].length - 1;
-    var end_index = start_index + params.slice(start_index).indexOf(data_end_search) + 1;
-
-    parseDataSource(JSON.parse(params.slice(start_index, end_index)));
+    parseDataSource(JSON.parse(params.slice(startIndex, endIndex)));
 }
 
-// Check if source holds array of images
-try {
-    const start_search = />AF_initDataCallback\(/g;
-    const end_search = ');</script>';
-    var htmlContent = document.documentElement.innerHTML;
-
-    var success = false;
-
-    let match;
-    while (!success && ((match = start_search.exec(htmlContent)) !== null)) {
-        var start_index = match.index + match[0].length;
-        var end_index = start_index + htmlContent.slice(start_index).indexOf(end_search);
-
-        var params = htmlContent.slice(start_index, end_index);
-
-        const ds_search = /key:\s'ds:(\d)'/;
-        var ds_match = params.match(ds_search);
-
-        if (ds_match === null) {
-            continue;
-        }
-
-        if (ds_match[1] === '1') {
-            parseDataSourceType1(params);
-            success = true;
-        }
-    }
-
-    if (!success) {
-        if (DEBUG)
-            console.log('ViewImage: Failed to find data source.');
-    }
-    else if (DEBUG)
-        console.log('ViewImage: Successfully created source images array.');
-
-} catch (error) {
-    if (DEBUG) {
-        console.log('ViewImage: Failed to create source images array.');
-        console.error(error);
-    }
-}
-
-
-// Define the mutation observers
-var observer = new MutationObserver(function (mutations) {
-
-    if (TRACE)
-        console.log('ViewImage: Mutations detected: ', mutations);
-
-    var node, imgClassName;
+function bootstrapImageIndex() {
     try {
-        imgClassName = document.querySelector('img[src][style][jsaction]').className.split(' ')[0];
+        const startSearch = />AF_initDataCallback\(/g;
+        const endSearch = ');</script>';
+        const htmlContent = document.documentElement.innerHTML;
+        let success = false;
+
+        let match;
+        while (!success && ((match = startSearch.exec(htmlContent)) !== null)) {
+            const startIndex = match.index + match[0].length;
+            const endIndex = startIndex + htmlContent.slice(startIndex).indexOf(endSearch);
+            const params = htmlContent.slice(startIndex, endIndex);
+
+            const dsMatch = params.match(/key:\s'ds:(\d)'/);
+            if (dsMatch === null) continue;
+
+            if (dsMatch[1] === '1') {
+                parseDataSourceType1(params);
+                success = true;
+            }
+        }
+
+        if (success) {
+            debug('Successfully created source images array');
+        } else {
+            debug('Failed to find data source');
+        }
+    } catch (error) {
+        debug('Failed to create source images array');
+        if (DEBUG) console.error(error);
+    }
+}
+
+bootstrapImageIndex();
+
+// --- MutationObserver with rAF batching ---------------------------------
+
+const pendingNodes = new Set();
+let frameScheduled = false;
+
+function scheduleAddLinks(node) {
+    pendingNodes.add(node);
+    if (frameScheduled) return;
+    frameScheduled = true;
+    requestAnimationFrame(() => {
+        frameScheduled = false;
+        const batch = Array.from(pendingNodes);
+        pendingNodes.clear();
+        for (const n of batch) addLinks(n);
+    });
+}
+
+const observer = new MutationObserver(mutations => {
+    trace('Mutations detected:', mutations);
+
+    let imgClassName;
+    try {
+        imgClassName = document.querySelector(IMG_SELECTOR).className.split(' ')[0];
     } catch {
         imgClassName = null;
     }
-    for (var mutation of mutations) {
-        if (mutation.addedNodes && mutation.addedNodes.length > 0) {
-            for (node of mutation.addedNodes) {
-                if (node.classList) {
-                    var classesToCheck = ['irc_mi', 'irc_mut', 'irc_ris'];
-                    if (imgClassName) classesToCheck.push(imgClassName);
-                    if (classesToCheck.some(className => node.classList.contains(className))) {
-                        addLinks(node);
-                    }
-                }
+
+    const classesToCheck = [...MUTATION_IMG_CLASSES];
+    if (imgClassName) classesToCheck.push(imgClassName);
+
+    for (const mutation of mutations) {
+        for (const node of mutation.addedNodes || []) {
+            if (!node.classList) continue;
+            if (classesToCheck.some(c => node.classList.contains(c))) {
+                scheduleAddLinks(node);
             }
         }
 
         if (imgClassName && mutation.target.classList && mutation.target.classList.contains(imgClassName)) {
-            node = null;
-            for (var i = 0; i < OCT19_CONTAINER_SELECTORS.length; i++) {
-                node = mutation.target.closest(OCT19_CONTAINER_SELECTORS[i]);
-                if (node) break;
-            }
-
-            if (node && !node.hasAttribute('aria-hidden')) {
-                addLinks(node);
+            for (const selector of CONTAINER_SELECTORS) {
+                const node = mutation.target.closest(selector);
+                if (node && !node.hasAttribute('aria-hidden')) {
+                    scheduleAddLinks(node);
+                    break;
+                }
             }
         }
     }
 });
 
-// Get options and start adding links
-chrome.storage.sync.get(['options', 'defaultOptions'], function (storage) {
+// Get options and start observing
+chrome.storage.sync.get(['options', 'defaultOptions'], storage => {
     options = Object.assign({}, storage.defaultOptions || {}, storage.options || {});
 
-    if (DEBUG)
-        console.log('ViewImage: Initialising observer...');
+    debug('Initialising observer...');
 
     observer.observe(document.body, {
         childList: true,
         subtree: true,
         attributes: true,
-        attributeFilter: ['class', 'src', 'style']
+        attributeFilter: ['class', 'src', 'style'],
     });
 });

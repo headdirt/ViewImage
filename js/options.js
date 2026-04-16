@@ -4,34 +4,21 @@
 let defaultOptions;
 let options;
 
-// Load options from storage
-const load = function () {
-    return new Promise(function (resolve) {
-        chrome.storage.sync.get('options', function (storage) {
-            // Get and save options
-            options = storage.options || Object.assign({}, defaultOptions);
-
-            // Show and resolve
-            show(options);
-            resolve(options);
-        });
+const load = () => new Promise(resolve => {
+    chrome.storage.sync.get('options', storage => {
+        options = storage.options || Object.assign({}, defaultOptions);
+        show(options);
+        resolve(options);
     });
-};
+});
 
-// Save options to storage
-const save = function (object) {
-    return new Promise(function (resolve) {
-        chrome.storage.sync.set({
-            'options': object
-        }, resolve);
-    });
-};
+const save = object => new Promise(resolve => {
+    chrome.storage.sync.set({ options: object }, resolve);
+});
 
-// Update visibility of page elements;
-const update_page = function () {
-
-    var manualButtonToggle = document.getElementById('manually-set-button-text');
-    var manualButtonText = document.getElementById('manual-toggle');
+const update_page = () => {
+    const manualButtonToggle = document.getElementById('manually-set-button-text');
+    const manualButtonText = document.getElementById('manual-toggle');
 
     if (manualButtonToggle.checked) {
         manualButtonText.classList.remove('disabled');
@@ -40,75 +27,58 @@ const update_page = function () {
     }
 };
 
-// Show options
-const show = function (options) {
-    for (const key in options) {
-        var element = document.getElementById(key);
-        if (element) {
-            switch (typeof (options[key])) {
-                case ('boolean'):
-                    element.checked = options[key];
-                    break;
-                case ('string'):
-                    element.value = options[key];
-                    break;
-            }
+const show = opts => {
+    for (const key in opts) {
+        const element = document.getElementById(key);
+        if (!element) continue;
+        switch (typeof opts[key]) {
+            case 'boolean':
+                element.checked = opts[key];
+                break;
+            case 'string':
+                element.value = opts[key];
+                break;
         }
     }
-
     update_page();
 };
 
-// Reset to defaults
-const reset = function () {
-    save(defaultOptions)
-        .then(() => {
-            show(defaultOptions);
-            update_context_menu(defaultOptions['context-menu-search-by-image']);
-        });
-};
-
-
-// Load default options once when page loads, then load user options
-chrome.storage.sync.get('defaultOptions', function (storage) {
-    // Get and save default options
-    defaultOptions = storage.defaultOptions;
-
-    // Load options
-    load();
-});
-
-const update_context_menu = function (enabled) {
-    chrome.contextMenus.remove('ViewImage-SearchByImage', function () {
+const update_context_menu = enabled => {
+    chrome.contextMenus.remove('ViewImage-SearchByImage', () => {
         void chrome.runtime.lastError; // suppress "no such menu item" warning
 
-        if (!enabled) {
-            return;
-        }
+        if (!enabled) return;
 
-        chrome.contextMenus.create(
-            {
-                'id': 'ViewImage-SearchByImage',
-                'title': toI18n('__MSG_searchImage__'),  // eslint-disable-line no-undef
-                'contexts': ['image'],
-            }
-        );
+        chrome.contextMenus.create({
+            id: 'ViewImage-SearchByImage',
+            title: toI18n('__MSG_searchImage__'),
+            contexts: ['image'],
+        });
     });
 };
 
-// On change, save
-document.addEventListener('change', event => {
+const reset = () => {
+    save(defaultOptions).then(() => {
+        show(defaultOptions);
+        update_context_menu(defaultOptions['context-menu-search-by-image']);
+    });
+};
 
-    // Update the visibility of the context menu
+chrome.storage.sync.get('defaultOptions', storage => {
+    defaultOptions = storage.defaultOptions;
+    load();
+});
+
+document.addEventListener('change', event => {
     if (event.target.id === 'context-menu-search-by-image') {
         update_context_menu(event.target.checked);
     }
 
     switch (event.target.type) {
-        case ('checkbox'):
+        case 'checkbox':
             options[event.target.id] = event.target.checked;
             break;
-        case ('text'):
+        case 'text':
             options[event.target.id] = event.target.value;
             break;
     }
@@ -117,9 +87,8 @@ document.addEventListener('change', event => {
     update_page();
 });
 
-// On reset button click
 document.addEventListener('click', event => {
-    if (event.target.id == 'reset-options') {
+    if (event.target.id === 'reset-options') {
         reset();
     }
     update_page();

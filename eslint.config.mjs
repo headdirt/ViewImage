@@ -23,8 +23,13 @@ export default [{
     languageOptions: {
         globals: {
             ...globals.browser,
+            ...globals.serviceworker,
             chrome: false,
             browser: false,
+            // Shared helpers defined in js/i18n.js (loaded alongside other scripts)
+            toI18n: false,
+            localiseObject: false,
+            localisePage: false,
         },
 
         ecmaVersion: 2020,
@@ -33,6 +38,7 @@ export default [{
 
     rules: {
         "no-global-assign": ["error"],
+        "no-unused-vars": ["error", { varsIgnorePattern: "^(toI18n|localiseObject|localisePage)$" }],
 
         indent: ["error", 4, {
             SwitchCase: 1,

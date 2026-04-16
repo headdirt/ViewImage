@@ -1,12 +1,13 @@
 {
     "name": "view-image-extension",
-    "version": "5.4.0",
+    "version": "5.4.1",
     "private": true,
     "type": "module",
     "scripts": {
         "build": "web-ext build --source-dir . --artifacts-dir dist --overwrite-dest --ignore-files package.json package-lock.json node_modules tests playwright.config.mjs",
         "lint": "eslint .",
         "lint:extension": "web-ext lint --source-dir . --ignore-files package.json package-lock.json node_modules tests playwright.config.mjs",
+        "manifest": "node scripts/build-manifest.mjs",
         "smoke": "playwright test"
     },
     "devDependencies": {

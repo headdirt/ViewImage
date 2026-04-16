@@ -1,14 +1,14 @@
 'use strict';
 
-const DEBUG = false;
-
-function toI18n(str) {
-    return str.replace(/__MSG_(\w+)__/g, function (match, v1) {
-        return v1 ? chrome.i18n.getMessage(v1) : '';
-    });
+// i18n helpers are shared via js/i18n.js (loaded via importScripts on MV3
+// service workers, via the manifest's background.scripts array on Firefox).
+if (typeof importScripts === 'function') {
+    importScripts('./i18n.js');
 }
 
-// Default options
+const DEBUG = false;
+const debug = (...args) => { if (DEBUG) console.log('ViewImage:', ...args); };
+
 const defaultOptions = {
     'open-in-new-tab': true,
     'open-search-by-in-new-tab': true,
@@ -19,35 +19,36 @@ const defaultOptions = {
     'context-menu-search-by-image': true,
 };
 
-// Save default options to storage
-chrome.storage.sync.get('defaultOptions', function () {
-    chrome.storage.sync.set({ defaultOptions });
-});
+// Publish defaults so content scripts can read them without re-declaring
+chrome.storage.sync.set({ defaultOptions });
 
-chrome.runtime.onInstalled.addListener(() => {
-    chrome.storage.sync.get(['options', 'defaultOptions'], (storage) => {
-        if (!Object.prototype.hasOwnProperty.call(storage, 'options')) {
-            storage.options = {};
-        }
+async function ensureContextMenu() {
+    const { options = {}, defaultOptions: storedDefaults } =
+        await chrome.storage.sync.get(['options', 'defaultOptions']);
+    const effective = Object.assign({}, defaultOptions, storedDefaults || {}, options);
 
-        const options = Object.assign({}, defaultOptions, storage.defaultOptions || {}, storage.options);
-
-        // Setup "Search by image" context menu item
-        if (options['context-menu-search-by-image']) {
-            chrome.contextMenus.create(
-                {
-                    'id': 'ViewImage-SearchByImage',
-                    'title': toI18n('__MSG_searchImage__'),
-                    'contexts': ['image'],
-                }
-            );
-        }
+    // Always remove first so this is idempotent across service-worker restarts
+    await new Promise(resolve => {
+        chrome.contextMenus.remove('ViewImage-SearchByImage', () => {
+            void chrome.runtime.lastError;
+            resolve();
+        });
     });
-});
+
+    if (effective['context-menu-search-by-image']) {
+        chrome.contextMenus.create({
+            id: 'ViewImage-SearchByImage',
+            title: toI18n('__MSG_searchImage__'),
+            contexts: ['image'],
+        });
+    }
+}
+
+chrome.runtime.onInstalled.addListener(ensureContextMenu);
+chrome.runtime.onStartup.addListener(ensureContextMenu);
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-    if (DEBUG)
-        console.log('ViewImage: Search By Image context menu item clicked.', info, tab);
+    debug('Search By Image context menu item clicked.', info, tab);
 
     if (info.menuItemId === 'ViewImage-SearchByImage') {
         chrome.tabs.create({

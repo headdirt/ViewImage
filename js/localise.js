@@ -1,21 +1,5 @@
 'use strict';
 
-function toI18n(str) {
-    return str.replace(/__MSG_(\w+)__/g, function (match, v1) {
-        return v1 ? chrome.i18n.getMessage(v1) : '';
-    });
-}
-
-function localiseObject(obj, tag) {
-    var msg = toI18n(tag);
-    if (msg) obj.textContent = msg;
-}
-
-var data = document.querySelectorAll('[data-localise]');
-
-for (var i = 0; i < data.length; i++) {
-    var obj = data[i];
-    var tag = obj.getAttribute('data-localise').toString();
-
-    localiseObject(obj, tag);
-}
+// i18n helpers live in js/i18n.js and are loaded before this script
+// in every HTML page that uses [data-localise].
+localisePage();
