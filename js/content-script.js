@@ -10,8 +10,8 @@ const trace = (...args) => { if (TRACE) console.log('ViewImage:', ...args); };
 const CONTAINER_SELECTORS = ['.tvh9oe', '.EIehLd', '.fHE6De', '.Z7HyUd'];
 const DYNAMIC_CONTAINER_SELECTORS = ['[data-lhcontainer]'];
 
-// Candidate selectors for Google-rendered action buttons. Structural discovery
-// below covers layouts where these obfuscated classes have rotated.
+// Candidate class names for the "Visit" button Google renders next to the
+// preview. Google rotates these regularly; dynamic discovery covers the rest.
 const VISIT_BUTTON_SELECTOR =
     '.ZsbmCf[href], a.J2oL9c, a.jAklOc, a.uZ49bd, a.e0XTue, a.kWgFk, a.j7ZI7c';
 const SEARCH_LINK_SELECTOR =
@@ -57,6 +57,31 @@ function clearExtElements(container) {
     }
 }
 
+// Dynamically discover the visit-button class name by traversing the DOM
+// relative to an image element. Google's obfuscated class names change, so we
+// locate the button structurally instead of by static class list.
+function findVisitButtonClassName(imgEl) {
+    if (!imgEl) return null;
+
+    const traversals = [
+        el => el.parentElement.parentElement.parentElement.nextSibling.querySelector('div a span').parentElement.parentElement,
+        el => el.parentElement.parentElement.parentElement.nextSibling.nextSibling.querySelector('div a span').parentElement.parentElement,
+        el => el.parentElement.parentElement.parentElement.nextSibling.querySelector('div a div').parentElement,
+        el => el.parentElement.parentElement.nextSibling.querySelector('div a span').parentElement.parentElement,
+        el => el.parentElement.parentElement.nextSibling.nextSibling.querySelector('div a span').parentElement.parentElement,
+    ];
+
+    for (let i = 0; i < traversals.length; i++) {
+        try {
+            return traversals[i](imgEl).className.split(' ')[0];
+        } catch {
+            debug(`vbClassName not found via traversal ${i}`);
+        }
+    }
+
+    return null;
+}
+
 function findImageURL(container) {
     let image = container.querySelector(IMG_SELECTOR);
     if (image && image.src in images) {
@@ -99,49 +124,9 @@ function findImageURL(container) {
 
 // --- Button injection ---------------------------------------------------
 
-function getActionLinks(container) {
-    return Array.from(container.querySelectorAll('a[href]'))
-        .filter(link => !link.classList.contains('vi_ext_addon'));
-}
-
-function isGoogleHostname(url) {
-    return /^(.+\.)?google\.[^/]+$/.test(url.hostname);
-}
-
-function findActionLink(actionLinks, predicate) {
-    return actionLinks.find(link => {
-        try {
-            return predicate(new URL(link.href), link);
-        } catch {
-            return false;
-        }
-    });
-}
-
-function findSourcePageLink(actionLinks) {
-    return findActionLink(actionLinks, url =>
-        !isGoogleHostname(url) && !url.hostname.endsWith('gstatic.com'));
-}
-
-function findSearchByImageLink(actionLinks) {
-    return findActionLink(actionLinks, (url, link) =>
-        isGoogleHostname(url) && (
-            url.pathname.includes('/searchbyimage') ||
-            url.searchParams.has('tbs') ||
-            link.textContent.toLowerCase().includes('search')
-        ));
-}
-
-function findVisitButton(container, actionLinks) {
-    return container.querySelector(VISIT_BUTTON_SELECTOR) || findSourcePageLink(actionLinks);
-}
-
-function findSearchButton(container, actionLinks) {
-    return container.querySelector(SEARCH_LINK_SELECTOR) || findSearchByImageLink(actionLinks);
-}
-
-function addViewImageButton(container, imageURL, actionLinks) {
-    const visitButton = findVisitButton(container, actionLinks);
+function addViewImageButton(container, imageURL, vbClassName) {
+    const selector = VISIT_BUTTON_SELECTOR + (vbClassName ? `, a.${vbClassName}` : '');
+    const visitButton = container.querySelector(selector);
 
     if (!visitButton) {
         debug('Adding View-Image button failed, visit button was not found');
@@ -194,8 +179,9 @@ function addViewImageButton(container, imageURL, actionLinks) {
     return true;
 }
 
-function addSearchImageButton(container, imageURL, actionLinks) {
-    const link = findSearchButton(container, actionLinks);
+function addSearchImageButton(container, imageURL, vbClassName) {
+    const selector = SEARCH_LINK_SELECTOR + (vbClassName ? `, .${vbClassName}` : '');
+    const link = container.querySelector(selector);
 
     if (!link) {
         debug('Adding Search-By-Image button failed, link was not found');
@@ -248,9 +234,11 @@ function addLinks(node) {
         return false;
     }
 
-    const actionLinks = getActionLinks(container);
-    addViewImageButton(container, imageURL, actionLinks);
-    addSearchImageButton(container, imageURL, actionLinks);
+    const imgEl = document.querySelector(IMG_SELECTOR);
+    const vbClassName = findVisitButtonClassName(imgEl);
+
+    addViewImageButton(container, imageURL, vbClassName);
+    addSearchImageButton(container, imageURL, vbClassName);
 
     return true;
 }
