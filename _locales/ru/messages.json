@@ -23,14 +23,6 @@
         "message": "Открывать \"Поиск по картинке\" в новой вкладке:",
         "description": "Settings toggle which causes the search by image page to open in new tab."
     },
-    "settingsToggle_globeIcon": {
-        "message": "Показывать иконку глобуса на кнопке \"Открыть в полном размере\":",
-        "description": "Settings toggle which causes the globe icon to display on the \"View Image\" button."
-    },
-    "settingsToggle_subjectCopyright": {
-        "message": "Скрыть предупреждение \"Изображения могут быть защищены авторским правом\":",
-        "description": "Settings toggle hides copyright message on image results page."
-    },
     "settingsToggle_buttonText": {
         "message": "Вручную назначить названия кнопок:",
         "description": "Settings toggle enables manually set text for buttons rather than locale."

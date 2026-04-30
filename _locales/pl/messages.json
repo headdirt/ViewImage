@@ -23,14 +23,6 @@
         "message": "Otwórz \"Wyszukaj obrazem\" w nowej karcie:",
         "description": "Przełącznik ustawień powodujący otwarcie strony wyszukiwania obrazem w nowej karcie."
     },
-    "settingsToggle_globeIcon": {
-        "message": "Pokaż ikonę globusa na przycisku \"Pokaż obraz\":",
-        "description": "Przełącznik ustawień powodujący wyświetlenie ikony globusa na przycisku \"Pokaż obraz\"."
-    },
-    "settingsToggle_subjectCopyright": {
-        "message": "Ukryj ostrzeżenie \"Obrazy mogą być objęte prawami autorskimi\":",
-        "description": "Przełącznik ustawień ukrywający komunikat o prawach autorskich na stronie wyników wyszukiwania obrazem."
-    },
     "settingsToggle_noReferrer": {
         "message": "Ukryj adres odsyłający po kliknięciu \"Pokaż obraz\":",
         "description": "Przełącznik ustawień powodujący włączenie atrybutu rel='noreferrer' na przycisku \"Pokaż obraz\"."
@@ -42,10 +34,6 @@
     "settingsToggle_contextMenu_searchByImage": {
         "message": "Pokaż \"Wyszukaj obrazem\" w menu kontekstowym:",
         "description": "Przełącznik ustawień określa, czy element menu kontekstowego \"Wyszukaj obrazem\" powinien być wyświetlany."
-    },
-    "settingsToggle_contextMenu_searchByImageNewTab": {
-        "message": "Otwórz wyniki \"Wyszukaj obrazem\" w nowej karcie:",
-        "description": "Przełącznik ustawień określa, czy element menu kontekstowego \"Wyszukaj obrazem\" powinien otwierać wyniki w nowej karcie."
     },
     "resetButton": {
         "message": "Przywróć domyślne",

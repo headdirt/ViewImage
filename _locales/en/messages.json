@@ -23,14 +23,6 @@
         "message": "Open \"Search by image\" in a new tab:",
         "description": "Settings toggle which causes the search by image page to open in new tab."
     },
-    "settingsToggle_globeIcon": {
-        "message": "Show Globe icon in \"View Image\" button:",
-        "description": "Settings toggle which causes the globe icon to display on the \"View Image\" button."
-    },
-    "settingsToggle_subjectCopyright": {
-        "message": "Hide \"Images may be subject to Copyright\" warning:",
-        "description": "Settings toggle hides copyright message on image results page."
-    },
     "settingsToggle_noReferrer": {
         "message": "Hide referrer from website when clicking \"View Image\":",
         "description": "Settings toggle which toggles rel='noreferrer' on the \"View Image\" button."
@@ -42,10 +34,6 @@
     "settingsToggle_contextMenu_searchByImage": {
         "message": "Show \"Search by image\" context menu item:",
         "description": "Setting toggles whether the \"Search by image\" context menu item should appear."
-    },
-    "settingsToggle_contextMenu_searchByImageNewTab": {
-        "message": "Open \"Search by Image\" context menu item results in a new tab:",
-        "description": "Setting toggles whether the \"Search by image\" context menu should open results in a new tab."
     },
     "resetButton": {
         "message": "Reset",

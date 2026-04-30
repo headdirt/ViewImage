@@ -23,14 +23,6 @@
         "message": "Obre \"Cerca per imatge\" en una pestanya nova:",
         "description": "Settings toggle which causes the search by image page to open in new tab."
     },
-    "settingsToggle_globeIcon": {
-        "message": "Mostra la icona del globus terraqüi al botó \"Mostra la imatge\":",
-        "description": "Settings toggle which causes the globe icon to display on the \"View Image\" button."
-    },
-    "settingsToggle_subjectCopyright": {
-        "message": "Oculta l'advertència \"Les imatges poden estar protegides per drets d'autor\":",
-        "description": "Settings toggle hides copyright message on image results page."
-    },
     "settingsToggle_noReferrer": {
         "message": "Oculta el referent a la pàgina web quan es fa clic a \"Mostra la imatge\":",
         "description": "Settings toggle which toggles rel='noreferrer' on the \"View Image\" button."

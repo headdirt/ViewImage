@@ -23,14 +23,6 @@
         "message": "A \"Keresés kép alapján\" hivatkozásra kattintva új lapon nyíljon meg:",
         "description": "Settings toggle which causes the search by image page to open in new tab."
     },
-    "settingsToggle_globeIcon": {
-        "message": "Jelenjen meg a földgömb ikon a \"Kép megtekintése\" gombon:",
-        "description": "Settings toggle which causes the globe icon to display on the \"View Image\" button."
-    },
-    "settingsToggle_subjectCopyright": {
-        "message": "\"A képeket szerzői jog védheti\" figyelmeztetés elrejtése:",
-        "description": "Settings toggle hides copyright message on image results page."
-    },
     "settingsToggle_shareBtn": {
         "message": "\"Megosztás\" gomb elrejtése:",
         "description": "Settings toggle hides share button."

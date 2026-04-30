@@ -23,14 +23,6 @@
         "message": "新しいタブで\"画像を検索\"を開く：",
         "description": "Settings toggle which causes the search by image page to open in new tab."
     },
-    "settingsToggle_globeIcon": {
-        "message": "\"画像を表示\"ボタンに地球アイコンを表示する：",
-        "description": "Settings toggle which causes the globe icon to display on the \"View Image\" button."
-    },
-    "settingsToggle_subjectCopyright": {
-        "message": "\"画像は著作権で保護されている場合があります\"を非表示にする：",
-        "description": "Settings toggle hides copyright message on image results page."
-    },
     "settingsToggle_noReferrer": {
         "message": "\"画像を表示\"をクリックしたときリファラーを送信しない：",
         "description": "Settings toggle which toggles rel='noreferrer' on the \"View Image\" button."

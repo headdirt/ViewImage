@@ -1,7 +1,7 @@
 import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
-    testDir: './tests/smoke',
+    testDir: './tests',
     timeout: 60000,
     use: {
         trace: 'retain-on-failure',

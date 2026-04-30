@@ -23,14 +23,6 @@
         "message": "새 탭에서 \"이미지로 검색\" 열기:",
         "description": "Settings toggle which causes the search by image page to open in new tab."
     },
-    "settingsToggle_globeIcon": {
-        "message": "\"이미지 보기\" 버튼에 지구본 아이콘 보이기:",
-        "description": "Settings toggle which causes the globe icon to display on the \"View Image\" button."
-    },
-    "settingsToggle_subjectCopyright": {
-        "message": "\"저작권이 적용되는 이미지일 수 있습니다\" 경고 숨기기:",
-        "description": "Settings toggle hides copyright message on image results page."
-    },
     "settingsToggle_buttonText": {
         "message": "수동으로 버튼 텍스트 설정:",
         "description": "Settings toggle enables manually set text for buttons rather than locale."

@@ -10,8 +10,8 @@ const trace = (...args) => { if (TRACE) console.log('ViewImage:', ...args); };
 const CONTAINER_SELECTORS = ['.tvh9oe', '.EIehLd', '.fHE6De', '.Z7HyUd'];
 const DYNAMIC_CONTAINER_SELECTORS = ['[data-lhcontainer]'];
 
-// Candidate class names for the "Visit" button Google renders next to the
-// preview. Google rotates these regularly; dynamic discovery covers the rest.
+// Candidate selectors for Google-rendered action buttons. Structural discovery
+// below covers layouts where these obfuscated classes have rotated.
 const VISIT_BUTTON_SELECTOR =
     '.ZsbmCf[href], a.J2oL9c, a.jAklOc, a.uZ49bd, a.e0XTue, a.kWgFk, a.j7ZI7c';
 const SEARCH_LINK_SELECTOR =
@@ -57,31 +57,6 @@ function clearExtElements(container) {
     }
 }
 
-// Dynamically discover the visit-button class name by traversing the DOM
-// relative to an image element. Google's obfuscated class names change, so we
-// locate the button structurally instead of by static class list.
-function findVisitButtonClassName(imgEl) {
-    if (!imgEl) return null;
-
-    const traversals = [
-        el => el.parentElement.parentElement.parentElement.nextSibling.querySelector('div a span').parentElement.parentElement,
-        el => el.parentElement.parentElement.parentElement.nextSibling.nextSibling.querySelector('div a span').parentElement.parentElement,
-        el => el.parentElement.parentElement.parentElement.nextSibling.querySelector('div a div').parentElement,
-        el => el.parentElement.parentElement.nextSibling.querySelector('div a span').parentElement.parentElement,
-        el => el.parentElement.parentElement.nextSibling.nextSibling.querySelector('div a span').parentElement.parentElement,
-    ];
-
-    for (let i = 0; i < traversals.length; i++) {
-        try {
-            return traversals[i](imgEl).className.split(' ')[0];
-        } catch {
-            debug(`vbClassName not found via traversal ${i}`);
-        }
-    }
-
-    return null;
-}
-
 function findImageURL(container) {
     let image = container.querySelector(IMG_SELECTOR);
     if (image && image.src in images) {
@@ -108,7 +83,7 @@ function findImageURL(container) {
         if (targetImage) {
             const link = targetImage.closest('a');
             if (link) {
-                if (link.href.match(/^[a-z]+:\/\/(?:www\.)?google\.[^/]*\/imgres\?/)) {
+                if (/^[a-z]+:\/\/(?:www\.)?google\.[^/]*\/imgres\?/.test(link.href)) {
                     const linkUrl = new URL(link.href);
                     const newImgLink = linkUrl.searchParams.get('imgurl');
                     if (newImgLink) return newImgLink;
@@ -124,9 +99,49 @@ function findImageURL(container) {
 
 // --- Button injection ---------------------------------------------------
 
-function addViewImageButton(container, imageURL, vbClassName) {
-    const selector = VISIT_BUTTON_SELECTOR + (vbClassName ? `, a.${vbClassName}` : '');
-    const visitButton = container.querySelector(selector);
+function getActionLinks(container) {
+    return Array.from(container.querySelectorAll('a[href]'))
+        .filter(link => !link.classList.contains('vi_ext_addon'));
+}
+
+function isGoogleHostname(url) {
+    return /^(.+\.)?google\.[^/]+$/.test(url.hostname);
+}
+
+function findActionLink(actionLinks, predicate) {
+    return actionLinks.find(link => {
+        try {
+            return predicate(new URL(link.href), link);
+        } catch {
+            return false;
+        }
+    });
+}
+
+function findSourcePageLink(actionLinks) {
+    return findActionLink(actionLinks, url =>
+        !isGoogleHostname(url) && !url.hostname.endsWith('gstatic.com'));
+}
+
+function findSearchByImageLink(actionLinks) {
+    return findActionLink(actionLinks, (url, link) =>
+        isGoogleHostname(url) && (
+            url.pathname.includes('/searchbyimage') ||
+            url.searchParams.has('tbs') ||
+            link.textContent.toLowerCase().includes('search')
+        ));
+}
+
+function findVisitButton(container, actionLinks) {
+    return container.querySelector(VISIT_BUTTON_SELECTOR) || findSourcePageLink(actionLinks);
+}
+
+function findSearchButton(container, actionLinks) {
+    return container.querySelector(SEARCH_LINK_SELECTOR) || findSearchByImageLink(actionLinks);
+}
+
+function addViewImageButton(container, imageURL, actionLinks) {
+    const visitButton = findVisitButton(container, actionLinks);
 
     if (!visitButton) {
         debug('Adding View-Image button failed, visit button was not found');
@@ -179,9 +194,8 @@ function addViewImageButton(container, imageURL, vbClassName) {
     return true;
 }
 
-function addSearchImageButton(container, imageURL, vbClassName) {
-    const selector = SEARCH_LINK_SELECTOR + (vbClassName ? `, .${vbClassName}` : '');
-    const link = container.querySelector(selector);
+function addSearchImageButton(container, imageURL, actionLinks) {
+    const link = findSearchButton(container, actionLinks);
 
     if (!link) {
         debug('Adding Search-By-Image button failed, link was not found');
@@ -234,11 +248,9 @@ function addLinks(node) {
         return false;
     }
 
-    const imgEl = document.querySelector(IMG_SELECTOR);
-    const vbClassName = findVisitButtonClassName(imgEl);
-
-    addViewImageButton(container, imageURL, vbClassName);
-    addSearchImageButton(container, imageURL, vbClassName);
+    const actionLinks = getActionLinks(container);
+    addViewImageButton(container, imageURL, actionLinks);
+    addSearchImageButton(container, imageURL, actionLinks);
 
     return true;
 }
@@ -337,6 +349,13 @@ function scheduleAddLinks(node) {
     });
 }
 
+function scheduleInitialLinks() {
+    const selectors = CONTAINER_SELECTORS.concat(DYNAMIC_CONTAINER_SELECTORS, IMG_SELECTOR);
+    for (const node of document.querySelectorAll(selectors.join(','))) {
+        scheduleAddLinks(node);
+    }
+}
+
 const observer = new MutationObserver(mutations => {
     trace('Mutations detected:', mutations);
 
@@ -371,15 +390,17 @@ const observer = new MutationObserver(mutations => {
 });
 
 // Get options and start observing
-chrome.storage.sync.get(['options', 'defaultOptions'], storage => {
-    options = Object.assign({}, storage.defaultOptions || {}, storage.options || {});
+storageSyncGet('options').then(storage => {
+    options = Object.assign({}, VIEW_IMAGE_DEFAULT_OPTIONS, storage.options || {});
 
     debug('Initialising observer...');
 
-    observer.observe(document.body, {
+    observer.observe(document.body || document.documentElement, {
         childList: true,
         subtree: true,
         attributes: true,
         attributeFilter: ['class', 'src', 'style'],
     });
+
+    scheduleInitialLinks();
 });

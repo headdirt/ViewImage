@@ -1,20 +1,14 @@
 'use strict';
 
-// Current options extend defaults
-let defaultOptions;
 let options;
 
-const load = () => new Promise(resolve => {
-    chrome.storage.sync.get('options', storage => {
-        options = storage.options || Object.assign({}, defaultOptions);
-        show(options);
-        resolve(options);
-    });
+const load = () => storageSyncGet('options').then(storage => {
+    options = Object.assign({}, VIEW_IMAGE_DEFAULT_OPTIONS, storage.options || {});
+    show(options);
+    return options;
 });
 
-const save = object => new Promise(resolve => {
-    chrome.storage.sync.set({ options: object }, resolve);
-});
+const save = object => storageSyncSet({ options: object });
 
 const update_page = () => {
     const manualButtonToggle = document.getElementById('manually-set-button-text');
@@ -43,37 +37,15 @@ const show = opts => {
     update_page();
 };
 
-const update_context_menu = enabled => {
-    chrome.contextMenus.remove('ViewImage-SearchByImage', () => {
-        void chrome.runtime.lastError; // suppress "no such menu item" warning
-
-        if (!enabled) return;
-
-        chrome.contextMenus.create({
-            id: 'ViewImage-SearchByImage',
-            title: toI18n('__MSG_searchImage__'),
-            contexts: ['image'],
-        });
-    });
-};
-
 const reset = () => {
-    save(defaultOptions).then(() => {
-        show(defaultOptions);
-        update_context_menu(defaultOptions['context-menu-search-by-image']);
+    save(VIEW_IMAGE_DEFAULT_OPTIONS).then(() => {
+        show(VIEW_IMAGE_DEFAULT_OPTIONS);
     });
 };
 
-chrome.storage.sync.get('defaultOptions', storage => {
-    defaultOptions = storage.defaultOptions;
-    load();
-});
+load();
 
 document.addEventListener('change', event => {
-    if (event.target.id === 'context-menu-search-by-image') {
-        update_context_menu(event.target.checked);
-    }
-
     switch (event.target.type) {
         case 'checkbox':
             options[event.target.id] = event.target.checked;

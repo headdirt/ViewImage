@@ -18,18 +18,10 @@
     "settingsToggle_NewTab_viewImage": {
         "message": "Abrir as imagens em uma nova guia:",
         "description": "Alterar a opção significa que as imagens serão abertas em uma nova guia."
-   },
+    },
     "settingsToggle_NewTab_searchByImage": {
         "message": "Abrir \"Pesquisar por imagem\" em uma nova aba:",
         "description": "Alterar a opção faz com que a página 'pesquisar por imagem' seja aberta em uma nova aba."
-    },
-    "settingsToggle_globeIcon": {
-        "message": "Exibir ícone do Globo no botão \"Ver Imagem\":",
-        "description": "Alterar a opção irá fazer com que o ícone do globo seja exibido no botão \"Ver Imagem\"."
-    },
-    "settingsToggle_subjectCopyright": {
-        "message": "Ocultar mensagem \"As imagens podem estar sujeitas a direitos autorais\":",
-        "description": "Alterar a opção irá ocultar a mensagem de direitos autorais na página de resultados de imagens."
     },
     "settingsToggle_noReferrer": {
         "message": "Ocultar referenciador do site ao clicar \"Ver Imagem\":",

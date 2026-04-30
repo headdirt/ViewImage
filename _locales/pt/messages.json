@@ -18,18 +18,10 @@
     "settingsToggle_NewTab_viewImage": {
         "message": "Abrir \"Ver imagem\" num novo separador:",
         "description": "Opção que permite que as imagens sejam abertas num novo separador."
-   },
+    },
     "settingsToggle_NewTab_searchByImage": {
         "message": "Abrir \"Pesquisar por imagem\" num novo separador:",
         "description": "Opção que permite que a página \"Pesquisar por imagem\" seja aberta num novo separador."
-    },
-    "settingsToggle_globeIcon": {
-        "message": "Ver ícone do Globo no botão \"Ver imagem\":",
-        "description": "Opção que permite que o ícone do globo seja apresentado no botão \"Ver imagem\"."
-    },
-    "settingsToggle_subjectCopyright": {
-        "message": "Ocultar aviso \"As imagens podem estar sujeitas a direitos de autor\":",
-        "description": "Opção que permite ocultar o aviso de direitos de autor na página de resultados de imagens."
     },
     "settingsToggle_noReferrer": {
         "message": "Ocultar referenciador do site ao clicar em \"Ver imagem\":",

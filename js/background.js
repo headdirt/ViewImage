@@ -1,56 +1,55 @@
 'use strict';
 
-// i18n helpers are shared via js/i18n.js (loaded via importScripts on MV3
-// service workers, via the manifest's background.scripts array on Firefox).
+// Shared helpers are loaded here for MV3 service workers and via
+// background.scripts in Firefox.
 if (typeof importScripts === 'function') {
-    importScripts('./i18n.js');
+    importScripts('./default-options.js', './extension-api.js', './i18n.js');
 }
 
 const DEBUG = false;
 const debug = (...args) => { if (DEBUG) console.log('ViewImage:', ...args); };
 
-const defaultOptions = {
-    'open-in-new-tab': true,
-    'open-search-by-in-new-tab': true,
-    'manually-set-button-text': false,
-    'no-referrer': false,
-    'button-text-view-image': '',
-    'button-text-search-by-image': '',
-    'context-menu-search-by-image': true,
-};
-
-// Publish defaults so content scripts can read them without re-declaring
-chrome.storage.sync.set({ defaultOptions });
+const SEARCH_BY_IMAGE_MENU_ID = 'ViewImage-SearchByImage';
+const MENU_OPTION_KEY = 'context-menu-search-by-image';
 
 async function ensureContextMenu() {
-    const { options = {}, defaultOptions: storedDefaults } =
-        await chrome.storage.sync.get(['options', 'defaultOptions']);
-    const effective = Object.assign({}, defaultOptions, storedDefaults || {}, options);
+    const { options = {} } = await storageSyncGet('options');
+    const effective = Object.assign({}, VIEW_IMAGE_DEFAULT_OPTIONS, options);
 
     // Always remove first so this is idempotent across service-worker restarts
-    await new Promise(resolve => {
-        chrome.contextMenus.remove('ViewImage-SearchByImage', () => {
-            void chrome.runtime.lastError;
-            resolve();
-        });
-    });
+    await removeContextMenu(SEARCH_BY_IMAGE_MENU_ID);
 
-    if (effective['context-menu-search-by-image']) {
+    if (effective[MENU_OPTION_KEY]) {
         chrome.contextMenus.create({
-            id: 'ViewImage-SearchByImage',
+            id: SEARCH_BY_IMAGE_MENU_ID,
             title: toI18n('__MSG_searchImage__'),
             contexts: ['image'],
         });
     }
 }
 
-chrome.runtime.onInstalled.addListener(ensureContextMenu);
+async function handleInstalled() {
+    // Legacy migration: pre-5.4.x stored a `defaultOptions` key in sync storage.
+    await Promise.all([
+        storageSyncRemove('defaultOptions'),
+        ensureContextMenu(),
+    ]);
+}
+
+chrome.runtime.onInstalled.addListener(handleInstalled);
 chrome.runtime.onStartup.addListener(ensureContextMenu);
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== 'sync' || !changes.options) return;
+    const before = changes.options.oldValue?.[MENU_OPTION_KEY];
+    const after = changes.options.newValue?.[MENU_OPTION_KEY];
+    if (before !== after) void ensureContextMenu();
+});
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
     debug('Search By Image context menu item clicked.', info, tab);
 
-    if (info.menuItemId === 'ViewImage-SearchByImage') {
+    if (info.menuItemId === SEARCH_BY_IMAGE_MENU_ID) {
         chrome.tabs.create({
             url: `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(info.srcUrl)}`,
         });

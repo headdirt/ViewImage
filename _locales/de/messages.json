@@ -23,14 +23,6 @@
         "message": "\"Bildersuche\" in einem neuen Tab öffnen",
         "description": "Settings toggle which causes the search by image page to open in new tab."
     },
-    "settingsToggle_globeIcon": {
-        "message": "Globus-Symbol in der Schaltfläche \"Bild ansehen\" anzeigen:",
-        "description": "Settings toggle which causes the globe icon to display on the \"View Image\" button."
-    },
-    "settingsToggle_subjectCopyright": {
-        "message": "Hinweis \"die Bilder sind eventuell urheberrechtlich geschützt\"  ausblenden:",
-        "description": "Settings toggle hides copyright message on image results page."
-    },
     "settingsToggle_buttonText": {
         "message": "Texte der Schaltflächen bearbeiten:",
         "description": "Settings toggle enables manually set text for buttons rather than locale."
@@ -42,9 +34,5 @@
     "optionsButton": {
         "message": "Optionen",
         "description": "Text displayed on the link to options button."
-    },
-    "legalNote": {
-        "message": "Die GitHub-Logo un eingetragene Marken von Github, Inc.",
-        "description": "Legal note for Github trademark."
     }
 }

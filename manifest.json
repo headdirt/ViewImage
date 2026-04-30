@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "__MSG_appName__",
-    "version": "5.4.1",
+    "version": "5.4.2",
     "description": "__MSG_appDesc__",
     "default_locale": "en",
     "icons": {
@@ -36,6 +36,8 @@
     "background": {
         "service_worker": "js/background.js",
         "scripts": [
+            "js/default-options.js",
+            "js/extension-api.js",
             "js/i18n.js",
             "js/background.js"
         ]
@@ -43,6 +45,8 @@
     "content_scripts": [
         {
             "js": [
+                "js/default-options.js",
+                "js/extension-api.js",
                 "js/i18n.js",
                 "js/content-script.js"
             ],

@@ -1,14 +1,15 @@
 {
     "name": "view-image-extension",
-    "version": "5.4.1",
+    "version": "5.4.2",
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "web-ext build --source-dir . --artifacts-dir dist --overwrite-dest --ignore-files package.json package-lock.json node_modules tests playwright.config.mjs",
+        "build": "web-ext build --source-dir . --artifacts-dir dist --overwrite-dest --ignore-files package.json package-lock.json node_modules tests test-results .tmp-playwright-profile playwright.config.mjs eslint.config.mjs scripts .github .claude .DS_Store",
         "lint": "eslint .",
-        "lint:extension": "web-ext lint --source-dir . --ignore-files package.json package-lock.json node_modules tests playwright.config.mjs",
+        "lint:extension": "web-ext lint --source-dir . --ignore-files package.json package-lock.json node_modules tests test-results .tmp-playwright-profile playwright.config.mjs eslint.config.mjs scripts .github .claude .DS_Store",
         "manifest": "node scripts/build-manifest.mjs",
-        "smoke": "playwright test"
+        "test": "playwright test tests/content-script.spec.mjs",
+        "smoke": "playwright test tests/smoke"
     },
     "devDependencies": {
         "@eslint/eslintrc": "3.3.5",

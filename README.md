@@ -40,6 +40,7 @@ Run checks:
 ```sh
 npm run lint
 npm run lint:extension
+npm test
 ```
 
 If you edit the TLD list or manifest structure, run `npm run manifest`.
