@@ -25,6 +25,51 @@ const MUTATION_IMG_CLASSES = ['irc_mi', 'irc_mut', 'irc_ris'];
 const images = {};
 let options;
 
+function isGoogleThumbnailURL(imageURL) {
+    try {
+        return /^encrypted-tbn\d+\.gstatic\.com$/.test(new URL(imageURL).hostname);
+    } catch {
+        return false;
+    }
+}
+
+function isSearchableImageURL(imageURL) {
+    try {
+        const url = new URL(imageURL);
+        return (url.protocol === 'http:' || url.protocol === 'https:') && !isGoogleThumbnailURL(imageURL);
+    } catch {
+        return false;
+    }
+}
+
+function findImageURLFromPageURL() {
+    try {
+        return new URL(window.location).searchParams.get('imgurl');
+    } catch {
+        return null;
+    }
+}
+
+function removeGoogleClickHandlers(link) {
+    link.removeAttribute('jsaction');
+    for (const el of link.querySelectorAll('[jsaction]')) {
+        el.removeAttribute('jsaction');
+    }
+}
+
+function disableImageButton(link, title) {
+    link.removeAttribute('href');
+    link.removeAttribute('target');
+    link.removeAttribute('rel');
+    link.style = 'pointer-events: none;';
+    link.title = title;
+
+    const buttonDiv = link.querySelector('div');
+    if (buttonDiv) {
+        buttonDiv.style = 'background-color: #707070; border-color: #707070;';
+    }
+}
+
 // --- DOM discovery ------------------------------------------------------
 
 function getContainer(node) {
@@ -88,22 +133,32 @@ function findImageURL(container) {
         return images[image.src];
     }
 
-    // Override url for images using base64 embeds
-    if (!image || image.src === '' || image.src.startsWith('data')) {
-        const thumbnail = document.querySelector(`img[name="${container.dataset.itemId}"]`);
-        if (!thumbnail) {
-            const url = new URL(window.location);
-            const imgLink = url.searchParams.get('imgurl');
-            if (imgLink) return imgLink;
-        } else {
-            const meta = thumbnail.closest('.rg_bx').querySelector('.rg_meta');
-            const metadata = JSON.parse(meta.innerHTML);
-            return metadata.ou;
+    const needsFallback = !image || image.src === '' || image.src.startsWith('data') ||
+        image.src.startsWith('blob') || isGoogleThumbnailURL(image.src);
+
+    // Use fallback sources for embedded, transient, or thumbnail previews.
+    if (needsFallback) {
+        const thumbnail = container.dataset.itemId ?
+            document.querySelector(`img[name="${container.dataset.itemId}"]`) :
+            null;
+        if (thumbnail) {
+            try {
+                const meta = thumbnail.closest('.rg_bx')?.querySelector('.rg_meta');
+                if (meta) {
+                    const metadata = JSON.parse(meta.innerHTML);
+                    if (metadata.ou) return metadata.ou;
+                }
+            } catch {
+                debug('Failed to parse thumbnail metadata');
+            }
         }
+
+        const imgLink = findImageURLFromPageURL();
+        if (imgLink) return imgLink;
     }
 
     // If the above doesn't work, use the link in related images to find it
-    if (!image || image.src === '' || image.src.startsWith('data')) {
+    if (needsFallback) {
         const targetImage = container.querySelector('img.target_image');
         if (targetImage) {
             const link = targetImage.closest('a');
@@ -136,20 +191,14 @@ function addViewImageButton(container, imageURL, vbClassName) {
     const viewImageButton = visitButton.cloneNode(true);
     viewImageButton.classList.add('vi_ext_addon');
     const viewImageLink = viewImageButton;
+    removeGoogleClickHandlers(viewImageLink);
 
-    if (imageURL && !imageURL.startsWith('https://encrypted-tbn0.gstatic.com')) {
+    if (imageURL && !isGoogleThumbnailURL(imageURL)) {
         viewImageLink.href = imageURL;
     } else {
-        viewImageLink.style = 'pointer-events: none;';
-        viewImageLink.title = 'No full-sized image was found.';
-
-        const viewImageDiv = viewImageLink.querySelector('div');
-        if (viewImageDiv) {
-            viewImageDiv.style = 'background-color: #707070; border-color: #707070;';
-        }
+        disableImageButton(viewImageLink, 'No full-sized image was found.');
     }
 
-    viewImageLink.removeAttribute('jsaction');
     viewImageLink.removeAttribute('target');
 
     if (options['open-in-new-tab']) {
@@ -190,6 +239,9 @@ function addSearchImageButton(container, imageURL, vbClassName) {
 
     const searchImageButton = link.cloneNode(true);
     searchImageButton.classList.add('vi_ext_addon');
+    removeGoogleClickHandlers(searchImageButton);
+    searchImageButton.removeAttribute('target');
+    searchImageButton.removeAttribute('rel');
 
     const searchImageButtonText = searchImageButton.querySelector('span');
     if (!searchImageButtonText) return false;
@@ -206,11 +258,15 @@ function addSearchImageButton(container, imageURL, vbClassName) {
         searchImageButtonText.appendChild(lensButton);
     }
 
-    searchImageButton.href = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(imageURL)}`;
+    if (isSearchableImageURL(imageURL)) {
+        searchImageButton.href = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(imageURL)}`;
 
-    if (options['open-search-by-in-new-tab']) {
-        searchImageButton.setAttribute('target', '_blank');
-        searchImageButton.setAttribute('rel', 'noopener');
+        if (options['open-search-by-in-new-tab']) {
+            searchImageButton.setAttribute('target', '_blank');
+            searchImageButton.setAttribute('rel', 'noopener');
+        }
+    } else {
+        disableImageButton(searchImageButton, 'No searchable image URL was found.');
     }
 
     link.parentElement.insertBefore(searchImageButton, link);

@@ -45,11 +45,21 @@ async function setGoogleImageFixture(page, imageSrc = 'https://example.com/full.
                 <img class="preview-image" src="${imageSrc}" style="width: 100px" jsaction="x" />
                 <nav>
                     <a class="ZsbmCf" href="https://example.com/page" jsaction="visit"><span>Visit</span></a>
-                    <a class="PvkmDc" href="https://images.google.com/searchbyimage"><span>Search</span></a>
+                    <a class="PvkmDc" href="https://images.google.com/searchbyimage" jsaction="search"><span jsaction="search-text">Search</span></a>
                 </nav>
             </section>
         </main>
     `);
+}
+
+async function setGoogleImageResultPageFixture(page, imageSrc, imageURL) {
+    await page.route('https://www.google.com/imgres?**', route => route.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        body: '<!doctype html><main></main>',
+    }));
+    await page.goto(`https://www.google.com/imgres?imgurl=${encodeURIComponent(imageURL)}`);
+    await setGoogleImageFixture(page, imageSrc);
 }
 
 test('injects controls into already-rendered Google Images markup', async ({ page }) => {
@@ -69,6 +79,8 @@ test('injects controls into already-rendered Google Images markup', async ({ pag
         'href',
         'https://lens.google.com/uploadbyurl?url=https%3A%2F%2Fexample.com%2Ffull.jpg'
     );
+    await expect(searchImage).not.toHaveAttribute('jsaction');
+    await expect(searchImage.locator('span')).not.toHaveAttribute('jsaction');
 });
 
 test('applies link privacy options when rendering controls', async ({ page }) => {
@@ -105,4 +117,32 @@ test('falls back to related image links when preview src is embedded data', asyn
         'href',
         'https://example.com/fallback.jpg'
     );
+});
+
+test('uses the imgres image URL when Google renders only a thumbnail', async ({ page }) => {
+    await setGoogleImageResultPageFixture(
+        page,
+        'https://encrypted-tbn0.gstatic.com/images?q=tbn:thumbnail',
+        'https://example.com/original.jpg'
+    );
+    await loadContentScript(page);
+
+    const searchImage = page.locator('.vi_ext_addon').nth(1);
+    await expect(searchImage).toHaveAttribute(
+        'href',
+        'https://lens.google.com/uploadbyurl?url=https%3A%2F%2Fexample.com%2Foriginal.jpg'
+    );
+});
+
+test('disables search when only an unsearchable image URL is available', async ({ page }) => {
+    await setGoogleImageFixture(
+        page,
+        'https://encrypted-tbn1.gstatic.com/images?q=tbn:thumbnail'
+    );
+    await loadContentScript(page);
+
+    const searchImage = page.locator('.vi_ext_addon').nth(1);
+    await expect(searchImage).not.toHaveAttribute('href');
+    await expect(searchImage).not.toHaveAttribute('target');
+    await expect(searchImage).toHaveAttribute('title', 'No searchable image URL was found.');
 });
