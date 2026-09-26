@@ -34,9 +34,5 @@
     "resetButton": {
         "message": "Restaurar",
         "description": "Texto apresentado no botão para reiniciar as prédefinições."
-    },
-    "optionsButton": {
-        "message": "Opções",
-        "description": "Texto apresentado no link para o botão de opções."
     }
 }

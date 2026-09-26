@@ -7,10 +7,6 @@
         "description": "Title of the application, as displayed on the web store.",
         "message": "Vis Billede"
     },
-    "optionsButton": {
-        "description": "Text displayed on the link to options button.",
-        "message": "Valgmuligheder"
-    },
     "resetButton": {
         "description": "Text displayed on reset button.",
         "message": "Nulstil"

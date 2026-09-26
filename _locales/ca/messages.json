@@ -34,9 +34,5 @@
     "resetButton": {
         "message": "Restablir",
         "description": "Text displayed on reset button."
-    },
-    "optionsButton": {
-        "message": "Opcions",
-        "description": "Text displayed on the link to options button."
     }
 }

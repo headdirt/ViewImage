@@ -22,9 +22,5 @@
     "resetButton": {
         "message": "Återställ",
         "description": "Text displayed on reset button."
-    },
-    "optionsButton": {
-        "message": "Alternativ",
-        "description": "Text displayed on the link to options button."
     }
 }

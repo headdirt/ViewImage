@@ -34,9 +34,5 @@
     "resetButton": {
         "message": "Redefinir",
         "description": "Texto do botão Reset."
-    },
-    "optionsButton": {
-        "message": "Opções",
-        "description": "Texto exibido no link para o botão de opções."
     }
 }

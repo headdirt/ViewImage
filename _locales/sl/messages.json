@@ -34,9 +34,5 @@
     "resetButton": {
         "message": "Ponastavi",
         "description": "Gumb za ponastavitev možnosti."
-    },
-    "optionsButton": {
-        "message": "Možnosti",
-        "description": "Gumb za odpiranje možnosti."
     }
 }

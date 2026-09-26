@@ -2,13 +2,13 @@
 
 let options;
 
-const load = () => storageSyncGet('options').then(storage => {
+const load = () => chrome.storage.sync.get('options').then(storage => {
     options = Object.assign({}, VIEW_IMAGE_DEFAULT_OPTIONS, storage.options || {});
     show(options);
     return options;
 });
 
-const save = object => storageSyncSet({ options: object });
+const save = object => chrome.storage.sync.set({ options: object });
 
 const update_page = () => {
     const manualButtonToggle = document.getElementById('manually-set-button-text');

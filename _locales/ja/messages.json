@@ -34,9 +34,5 @@
     "resetButton": {
         "message": "リセット",
         "description": "Text displayed on reset button."
-    },
-    "optionsButton": {
-        "message": "設定",
-        "description": "Text displayed on the link to options button."
     }
 }

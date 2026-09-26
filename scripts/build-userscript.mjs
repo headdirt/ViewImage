@@ -2,7 +2,7 @@
 // userscript and the extension share one implementation.
 //
 // The content script only touches a small slice of the extension API
-// (storage.sync.get, i18n.getMessage, runtime.getURL); the userscript provides
+// (storage.sync.get, i18n.getMessage); the userscript provides
 // a local `chrome` object implementing just that slice, with options coming
 // from an editable USER_OPTIONS block instead of the options page.
 
@@ -31,7 +31,6 @@ for (const locale of fs.readdirSync(path.join(rootDir, '_locales')).sort()) {
 }
 
 const dataURI = (file, type) => `data:${type};base64,${fs.readFileSync(path.join(rootDir, file)).toString('base64')}`;
-const assets = { 'img/lens.svg': dataURI('img/lens.svg', 'image/svg+xml') };
 
 // Everything the extension lets users configure, except the context menu,
 // which a userscript can't provide.
@@ -54,10 +53,7 @@ const header = [
     `// @icon            ${dataURI('icon/48.png', 'image/png')}`,
     '// @run-at          document-end',
     '// @grant           none',
-    ...googleTlds.flatMap(tld => [
-        `// @match           *://*.${tld}/search*`,
-        `// @match           *://*.${tld}/imgres*`,
-    ]),
+    ...googleTlds.map(tld => `// @match           *://*.${tld}/search*`),
     `// @updateURL       ${GIST_RAW_URL}`,
     `// @downloadURL     ${GIST_RAW_URL}`,
     '// ==/UserScript==',
@@ -71,9 +67,8 @@ const shim = `
 // Edit to customise. Changes are lost when the script updates.
 const USER_OPTIONS = ${JSON.stringify(userOptions, null, 4)};
 
-// Generated from the extension's _locales and img/ directories.
+// Generated from the extension's _locales directory.
 const MESSAGES = ${JSON.stringify(messages)};
-const ASSETS = ${JSON.stringify(assets)};
 
 function getMessage(key) {
     const languages = [document.documentElement.lang, ...navigator.languages];
@@ -91,8 +86,7 @@ function getMessage(key) {
 // The subset of the extension API used by the content script.
 const chrome = {
     i18n: { getMessage },
-    runtime: { getURL: pathname => ASSETS[pathname] },
-    storage: { sync: { get: (_keys, callback) => callback({ options: USER_OPTIONS }) } },
+    storage: { sync: { get: async () => ({ options: USER_OPTIONS }) } },
 };
 
 const style = document.createElement('style');
@@ -103,7 +97,6 @@ style.textContent = ${JSON.stringify(read('css/content-script.css'))};
 const body = [
     section('userscript shim (scripts/build-userscript.mjs)', shim),
     section('js/default-options.js'),
-    section('js/extension-api.js'),
     section('js/i18n.js'),
     section('js/content-script.js'),
 ].join('\n\n');

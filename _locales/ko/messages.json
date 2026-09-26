@@ -30,9 +30,5 @@
     "resetButton": {
         "message": "초기화",
         "description": "Text displayed on reset button."
-    },
-    "optionsButton": {
-        "message": "옵션",
-        "description": "Text displayed on the link to options button."
     }
 }

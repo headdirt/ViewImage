@@ -30,14 +30,14 @@ async function gotoGooglePanel(page, { lang = 'en', url = 'https://www.google.co
     await page.goto(url);
 }
 
-test('header matches every Google domain on /search and /imgres', () => {
+test('header matches every Google domain on /search', () => {
     const source = fs.readFileSync(userscriptPath, 'utf8');
     const tlds = JSON.parse(fs.readFileSync(path.join(rootDir, 'scripts', 'google-tlds.json'), 'utf8'));
     const matches = [...source.matchAll(/^\/\/ @match\s+(\S+)$/gm)].map(m => m[1]);
 
-    expect(matches).toHaveLength(tlds.length * 2);
+    expect(matches).toHaveLength(tlds.length);
     expect(matches).toContain('*://*.google.com/search*');
-    expect(matches).toContain('*://*.google.co.uk/imgres*');
+    expect(matches).toContain('*://*.google.co.uk/search*');
 
     const { version } = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
     expect(source).toContain(`// @version         ${version}\n`);
@@ -52,7 +52,7 @@ test('runs without extension APIs and adds working buttons', async ({ page }) =>
     await expect(buttons).toHaveCount(2);
     await expect(buttons.nth(1)).toHaveText('View image');
     await expect(buttons.nth(1)).toHaveAttribute('href', 'https://example.com/full.jpg');
-    await expect(buttons.nth(0).locator('img')).toHaveAttribute('src', /^data:image\/svg\+xml;base64,/);
+    await expect(buttons.nth(0).locator('img')).toHaveAttribute('src', /^data:image\/svg\+xml,/);
 
     // Nothing leaks into the page's global scope.
     expect(await page.evaluate(() => [typeof VIEW_IMAGE_DEFAULT_OPTIONS, typeof USER_OPTIONS])).toEqual(['undefined', 'undefined']);

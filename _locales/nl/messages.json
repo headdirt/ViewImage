@@ -22,9 +22,5 @@
     "resetButton": {
         "message": "Standaardwaarden",
         "description": "Tekst die getoond wordt op de knop voor standaardvoorwaarden."
-    },
-    "optionsButton": {
-        "message": "Opties",
-        "description": "Text displayed on the link to options button."
     }
 }

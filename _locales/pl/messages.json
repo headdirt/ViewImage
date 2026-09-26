@@ -38,9 +38,5 @@
     "resetButton": {
         "message": "Przywróć domyślne",
         "description": "Tekst wyświetlany na przycisku resetowania."
-    },
-    "optionsButton": {
-        "message": "Opcje",
-        "description": "Tekst wyświetlany na przycisku z opcjami."
     }
 }

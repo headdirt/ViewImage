@@ -3,7 +3,7 @@
 // Shared helpers are loaded here for MV3 service workers and via
 // background.scripts in Firefox.
 if (typeof importScripts === 'function') {
-    importScripts('./default-options.js', './extension-api.js', './i18n.js');
+    importScripts('./default-options.js', './i18n.js');
 }
 
 const DEBUG = false;
@@ -13,11 +13,11 @@ const SEARCH_BY_IMAGE_MENU_ID = 'ViewImage-SearchByImage';
 const MENU_OPTION_KEY = 'context-menu-search-by-image';
 
 async function ensureContextMenu() {
-    const { options = {} } = await storageSyncGet('options');
+    const { options = {} } = await chrome.storage.sync.get('options');
     const effective = Object.assign({}, VIEW_IMAGE_DEFAULT_OPTIONS, options);
 
-    // Always remove first so this is idempotent across service-worker restarts
-    await removeContextMenu(SEARCH_BY_IMAGE_MENU_ID);
+    // Always clear first so this is idempotent across service-worker restarts
+    await chrome.contextMenus.removeAll();
 
     if (effective[MENU_OPTION_KEY]) {
         chrome.contextMenus.create({
@@ -28,15 +28,7 @@ async function ensureContextMenu() {
     }
 }
 
-async function handleInstalled() {
-    // Legacy migration: pre-5.4.x stored a `defaultOptions` key in sync storage.
-    await Promise.all([
-        storageSyncRemove('defaultOptions'),
-        ensureContextMenu(),
-    ]);
-}
-
-chrome.runtime.onInstalled.addListener(handleInstalled);
+chrome.runtime.onInstalled.addListener(ensureContextMenu);
 chrome.runtime.onStartup.addListener(ensureContextMenu);
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -55,3 +47,5 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
         });
     }
 });
+
+chrome.action.onClicked.addListener(() => chrome.runtime.openOptionsPage());

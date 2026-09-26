@@ -34,9 +34,5 @@
     "resetButton": {
         "message": "නැවත පෙර සැකසුම් වෙත",
         "description": "Text displayed on reset button."
-    },
-    "optionsButton": {
-        "message": "සැකසුම්",
-        "description": "Text displayed on the link to options button."
     }
 }

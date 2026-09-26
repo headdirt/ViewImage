@@ -22,9 +22,5 @@
     "resetButton": {
         "message": "Tilbakestill",
         "description": "Text displayed on reset button."
-    },
-    "optionsButton": {
-        "message": "Opsjoner",
-        "description": "Text displayed on the link to options button."
     }
 }

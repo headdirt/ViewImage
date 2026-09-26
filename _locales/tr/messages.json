@@ -34,9 +34,5 @@
     "resetButton": {
         "message": "Sıfırla",
         "description": "Sıfırlama düğmesidir."
-    },
-    "optionsButton": {
-        "message": "Seçenekler",
-        "description": "Text displayed on the link to options button."
     }
 }

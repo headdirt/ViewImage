@@ -30,9 +30,5 @@
     "resetButton": {
         "message": "איפוס",
         "description": "הטקסט שמוצג על לחצן האיפוס."
-    },
-    "optionsButton": {
-        "message": "אפשרויות",
-        "description": "הטקסט שמוצג על לחצן האפשרויות."
     }
 }

@@ -31,10 +31,6 @@ export default [{
             localiseObject: false,
             localisePage: false,
             VIEW_IMAGE_DEFAULT_OPTIONS: false,
-            storageSyncGet: false,
-            storageSyncSet: false,
-            storageSyncRemove: false,
-            removeContextMenu: false,
         },
 
         ecmaVersion: 2020,
@@ -43,7 +39,7 @@ export default [{
 
     rules: {
         "no-global-assign": ["error"],
-        "no-unused-vars": ["error", { varsIgnorePattern: "^(toI18n|localiseObject|localisePage|VIEW_IMAGE_DEFAULT_OPTIONS|storageSyncGet|storageSyncSet|storageSyncRemove|removeContextMenu)$" }],
+        "no-unused-vars": ["error", { varsIgnorePattern: "^(toI18n|localiseObject|localisePage|VIEW_IMAGE_DEFAULT_OPTIONS)$" }],
 
         indent: ["error", 4, {
             SwitchCase: 1,

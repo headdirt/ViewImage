@@ -22,9 +22,5 @@
     "resetButton": {
         "message": "Resetovat",
         "description": "Text displayed on reset button."
-    },
-    "optionsButton": {
-        "message": "Možnosti",
-        "description": "Text displayed on the link to options button."
     }
 }

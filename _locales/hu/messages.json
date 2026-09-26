@@ -34,9 +34,5 @@
     "resetButton": {
         "message": "Visszaállítás",
         "description": "Text displayed on reset button."
-    },
-    "optionsButton": {
-        "message": "Beállítások",
-        "description": "Text displayed on the link to options button."
     }
 }

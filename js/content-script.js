@@ -6,7 +6,7 @@ const debug = (...args) => { if (DEBUG) console.log('ViewImage:', ...args); };
 
 // Google has used several URL flags for the Images tab over the years:
 // `tbm=isch` (legacy), `udm=2`, and `udm=imgs`. The manifest injects on all
-// /search and /imgres pages; this decides whether we're actually on Images.
+// /search pages; this decides whether we're actually on Images.
 const IMAGE_SEARCH_UDM_VALUES = ['2', 'imgs'];
 
 // Google's class names are obfuscated and rotate every few months, so the
@@ -38,6 +38,17 @@ const GOOGLE_ATTRIBUTES = [
 // reach the DOM, so this only helps for the initial results.
 const PAGE_DATA_PATTERN = /\[0,"([\w-]+)",\["https?:[^"]+",\d+,\d+\],\["(https?:[^"]+)",\d+,\d+\]/g;
 
+// Inlined so the extension doesn't need web_accessible_resources.
+const LENS_ICON = 'data:image/svg+xml,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">' +
+    '<path fill="#4285f4" d="M40 72a32 32 0 0 1 32-32h18V24H72a48 48 0 0 0-48 48v18h16V72z"/>' +
+    '<path fill="#34a853" d="M120 40a32 32 0 0 1 32 32v18h16V72a48 48 0 0 0-48-48h-18v16h18z"/>' +
+    '<path fill="#fbbc04" d="M152 120a32 32 0 0 1-32 32h-18v16h18a48 48 0 0 0 48-48v-18h-16v18z"/>' +
+    '<path fill="#ea4335" d="M72 152a32 32 0 0 1-32-32v-18H24v18a48 48 0 0 0 48 48h18v-16H72z"/>' +
+    '<circle cx="96" cy="96" r="30" fill="#4285f4"/><circle cx="128" cy="64" r="12" fill="#34a853"/>' +
+    '</svg>'
+);
+
 let options;
 
 // --- URL helpers ---------------------------------------------------------
@@ -45,7 +56,6 @@ let options;
 function isImageSearchURL(href) {
     try {
         const url = new URL(href);
-        if (url.pathname === '/imgres') return true;
         if (url.pathname !== '/search') return false;
         return url.searchParams.get('tbm') === 'isch' ||
             IMAGE_SEARCH_UDM_VALUES.includes(url.searchParams.get('udm'));
@@ -63,14 +73,6 @@ function isFullSizeImageURL(imageURL) {
             !/(^|\.)gstatic\.com$/.test(url.hostname);
     } catch {
         return false;
-    }
-}
-
-function findImageURLFromPageURL() {
-    try {
-        return new URL(window.location.href).searchParams.get('imgurl');
-    } catch {
-        return null;
     }
 }
 
@@ -125,13 +127,7 @@ function findImageURL(panel, visitLink) {
     //    blocks hotlinking), which is when "View image" is most useful.
     const docId = panel.querySelector('[data-id]')?.dataset.id;
     const fromPageData = docId && findImageURLInPageData(docId);
-    if (isFullSizeImageURL(fromPageData)) return fromPageData;
-
-    // 3. Legacy /imgres?imgurl=… pages.
-    const fromPageURL = findImageURLFromPageURL();
-    if (isFullSizeImageURL(fromPageURL)) return fromPageURL;
-
-    return null;
+    return isFullSizeImageURL(fromPageData) ? fromPageData : null;
 }
 
 // --- Button rendering ----------------------------------------------------
@@ -208,7 +204,7 @@ function renderPanel(panel) {
 
     const searchButton = createButton(visitLink, {
         label: searchLabel,
-        icon: manualText && options['button-text-search-by-image'] ? null : chrome.runtime.getURL('img/lens.svg'),
+        icon: manualText && options['button-text-search-by-image'] ? null : LENS_ICON,
         href: imageURL && `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(imageURL)}`,
         newTab: options['open-search-by-in-new-tab'],
         disabledTitle: 'No searchable image URL was found.',
@@ -243,7 +239,7 @@ function scheduleRender() {
 }
 
 async function start() {
-    const storage = await storageSyncGet('options');
+    const storage = await chrome.storage.sync.get('options');
     options = Object.assign({}, VIEW_IMAGE_DEFAULT_OPTIONS, storage.options || {});
 
     debug('Initialising observer...');

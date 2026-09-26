@@ -13,8 +13,7 @@
     },
     "author": "Joshua Butt",
     "action": {
-        "default_icon": "icon/48.png",
-        "default_popup": "html/popup.html"
+        "default_icon": "icon/48.png"
     },
     "permissions": [
         "contextMenus",
@@ -37,7 +36,6 @@
         "service_worker": "js/background.js",
         "scripts": [
             "js/default-options.js",
-            "js/extension-api.js",
             "js/i18n.js",
             "js/background.js"
         ]
@@ -46,7 +44,6 @@
         {
             "js": [
                 "js/default-options.js",
-                "js/extension-api.js",
                 "js/i18n.js",
                 "js/content-script.js"
             ],
@@ -55,17 +52,8 @@
             ],
             "matches": "__GOOGLE_TLD_MATCHES__",
             "include_globs": [
-                "*/search?*",
-                "*/imgres?*"
+                "*/search?*"
             ]
-        }
-    ],
-    "web_accessible_resources": [
-        {
-            "resources": [
-                "img/lens.svg"
-            ],
-            "matches": "__GOOGLE_TLD_MATCHES__"
         }
     ]
 }

@@ -34,9 +34,5 @@
     "resetButton": {
         "message": "Réinitialiser",
         "description": "Texte affiché sur le bouton de réinitialisation."
-    },
-    "optionsButton": {
-        "message": "Options",
-        "description": "Texte affiché sur le bouton lien vers les options."
     }
 }

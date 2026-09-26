@@ -24,15 +24,10 @@ async function loadContentScript(page, options = {}) {
                     return messages[key] || key;
                 },
             },
-            runtime: {
-                getURL(pathname) {
-                    return `chrome-extension://view-image/${pathname}`;
-                },
-            },
             storage: {
                 sync: {
-                    get(_keys, callback) {
-                        callback({ options: mockOptions });
+                    async get() {
+                        return { options: mockOptions };
                     },
                 },
             },
@@ -40,7 +35,6 @@ async function loadContentScript(page, options = {}) {
     }, options);
 
     await page.addScriptTag({ path: path.join(extensionPath, 'js/default-options.js') });
-    await page.addScriptTag({ path: path.join(extensionPath, 'js/extension-api.js') });
     await page.addScriptTag({ path: path.join(extensionPath, 'js/i18n.js') });
     await page.addScriptTag({ path: path.join(extensionPath, 'js/content-script.js') });
 }
@@ -108,7 +102,7 @@ test('adds Search by image and View image after the Visit button', async ({ page
         `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(FULL_URL)}`
     );
     await expect(searchButton(page).locator('img.vi_ext_icon')).toHaveAttribute(
-        'src', 'chrome-extension://view-image/img/lens.svg'
+        'src', /^data:image\/svg\+xml,/
     );
 });
 
@@ -184,18 +178,6 @@ test('falls back to page data when the full-size image failed to load', async ({
     await loadContentScript(page);
 
     await expect(viewImageButton(page)).toHaveAttribute('href', 'https://example.com/from-data.jpg?a=1&b=2');
-});
-
-test('uses the imgres image URL when Google renders only a thumbnail', async ({ page }) => {
-    const imageURL = 'https://example.com/original.jpg';
-    await gotoGooglePage(
-        page,
-        `https://www.google.com/imgres?imgurl=${encodeURIComponent(imageURL)}`,
-        panelHTML({ fullURL: null })
-    );
-    await loadContentScript(page);
-
-    await expect(viewImageButton(page)).toHaveAttribute('href', imageURL);
 });
 
 test('shows disabled buttons when no full-size image URL is available', async ({ page }) => {

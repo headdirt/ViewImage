@@ -30,9 +30,5 @@
     "resetButton": {
         "message": "Восстановить по умолчанию",
         "description": "Text displayed on reset button."
-    },
-    "optionsButton": {
-        "message": "Настройки",
-        "description": "Text displayed on the link to options button."
     }
 }

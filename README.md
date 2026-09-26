@@ -73,7 +73,7 @@ The smoke test opens a headed Chromium browser with the extension loaded and che
 
 Google's class names are obfuscated and change every few months, so `js/content-script.js` avoids them entirely:
 
-- The manifest injects on `/search` and `/imgres`; `isImageSearchURL()` decides whether the page is Images (`udm=2`, `udm=imgs` or legacy `tbm=isch`).
+- The manifest injects on `/search`; `isImageSearchURL()` decides whether the page is Images (`udm=2`, `udm=imgs` or legacy `tbm=isch`).
 - The preview panel is `[data-lhcontainer]`. The "Visit" button is the link described by the result title (`a[aria-describedby]`), and the preview image is inside the other link to the same page.
 - If the full-size image failed to load, its URL is looked up by result id in the data Google embeds in the page (first page of results only).
 
