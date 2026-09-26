@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
-    "name": "View Image",
-    "version": "6.0.0",
+    "name": "View Image Lite",
+    "version": "1.0.0",
     "description": "Re-implements the Google Images \"View image\" button.",
     "icons": {
         "16": "icon/16.png",
@@ -11,7 +11,7 @@
     "author": "Joshua Butt",
     "browser_specific_settings": {
         "gecko": {
-            "id": "{287dcf75-bec6-4eec-b4f6-71948a2eea29}",
+            "id": "{0d460613-e0cd-47ac-b300-9391836de7e2}",
             "data_collection_permissions": {
                 "required": [
                     "none"

@@ -1,11 +1,11 @@
 ![Icon](icon/128.png)
-# View Image
+# View Image Lite
 
 [![CI](https://github.com/headdirt/ViewImage/actions/workflows/main.yml/badge.svg)](https://github.com/headdirt/ViewImage/actions/workflows/main.yml)
 
 View Image is a Chrome / Firefox extension that re-implements the "View image" button in Google Image Search.
 
-This is the minimal build: one content script, no permissions, no options. It adds a single "View image" button (always opens in a new tab) next to Google's "Visit" button.
+View Image Lite is the minimal edition of [View Image](https://github.com/headdirt/ViewImage): one content script, no permissions, no options. It adds a single "View image" button (always opens in a new tab) next to Google's "Visit" button. It lives on the `lite` branch, is versioned separately (tags `lite-v*`), and has its own Firefox add-on ID, so it can be installed alongside View Image.
 
 This repository is a maintained fork of [bijij/ViewImage](https://github.com/bijij/ViewImage). The original browser store listings are not maintained from this fork.
 

@@ -3,7 +3,7 @@ name: Build Release Artifact
 on:
   push:
     tags:
-      - 'v*'
+      - 'lite-v*'
   workflow_dispatch:
 
 jobs:
@@ -29,5 +29,5 @@ jobs:
     - name: Upload package artifact
       uses: actions/upload-artifact@v4
       with:
-        name: view-image-extension
+        name: view-image-lite
         path: dist/*.zip

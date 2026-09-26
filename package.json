@@ -1,6 +1,6 @@
 {
-    "name": "view-image-extension",
-    "version": "6.0.0",
+    "name": "view-image-lite",
+    "version": "1.0.0",
     "private": true,
     "type": "module",
     "scripts": {
