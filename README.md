@@ -27,6 +27,10 @@ This fork is distributed from GitHub only.
 
 Firefox temporary add-ons are removed when Firefox restarts. This fork does not currently maintain an AMO listing or signed self-distributed releases.
 
+### Userscript
+
+A userscript version is published as a [gist](https://gist.github.com/headdirt/1af7759b4e3faf544a802e5300428a80) for Tampermonkey, Violentmonkey and similar managers. It is generated from the extension source, so both behave the same; options are set by editing `USER_OPTIONS` at the top of the script.
+
 ## Development
 
 Install dependencies:
@@ -45,6 +49,12 @@ npm test
 
 If you edit the TLD list or manifest structure, run `npm run manifest`.
 
+Build the userscript into `dist/viewimage.user.js` (never edit the gist by hand; it is overwritten from this output):
+
+```sh
+npm run userscript
+```
+
 Build a release zip:
 
 ```sh
@@ -57,7 +67,15 @@ Run the live smoke test:
 RUN_EXTENSION_SMOKE=1 npm run smoke
 ```
 
-The smoke test opens a headed Chromium browser with the extension loaded and checks Google Images. It is skipped by default because it depends on network access and the current Google Images UI.
+The smoke test opens a headed Chromium browser with the extension loaded and checks Google Images. It is skipped by default because it depends on network access and the current Google Images UI. Google serves a bot check to headless browsers, so it has to run headed.
+
+### How the content script finds things
+
+Google's class names are obfuscated and change every few months, so `js/content-script.js` avoids them entirely:
+
+- The manifest injects on `/search` and `/imgres`; `isImageSearchURL()` decides whether the page is Images (`udm=2`, `udm=imgs` or legacy `tbm=isch`).
+- The preview panel is `[data-lhcontainer]`. The "Visit" button is the link described by the result title (`a[aria-describedby]`), and the preview image is inside the other link to the same page.
+- If the full-size image failed to load, its URL is looked up by result id in the data Google embeds in the page (first page of results only).
 
 ## Credits
 

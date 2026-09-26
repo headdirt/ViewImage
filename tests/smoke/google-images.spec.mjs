@@ -24,12 +24,14 @@ test('adds View image controls on Google Images', async () => {
 
     try {
         const page = await context.newPage();
-        await page.goto('https://www.google.com/search?tbm=isch&q=puppies', {
+        await page.goto('https://www.google.com/search?q=puppies&udm=2', {
             waitUntil: 'domcontentloaded',
         });
 
-        await page.locator('img').first().click();
-        await expect(page.locator('.vi_ext_addon').first()).toBeVisible();
+        await page.locator('[data-docid] img').first().click();
+        const viewImage = page.locator('[data-lhcontainer] .vi_ext_addon:not(.vi_ext_disabled)').filter({ visible: true }).last();
+        await expect(viewImage).toBeVisible();
+        await expect(viewImage).toHaveAttribute('href', /^https?:\/\//);
     } finally {
         await context.close();
     }

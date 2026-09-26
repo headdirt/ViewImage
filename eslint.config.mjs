@@ -14,7 +14,7 @@ const compat = new FlatCompat({
 });
 
 export default [{
-    ignores: ["node_modules/*", "**/eslint.config.mjs"],
+    ignores: ["node_modules/*", "dist/*", "**/eslint.config.mjs"],
 }, ...compat.extends("eslint:recommended"), {
     plugins: {
         json,
@@ -55,7 +55,7 @@ export default [{
         "eol-last": "error",
     },
 }, {
-    files: ["tests/**/*.mjs", "playwright.config.mjs"],
+    files: ["tests/**/*.mjs", "scripts/**/*.mjs", "playwright.config.mjs"],
 
     languageOptions: {
         globals: {

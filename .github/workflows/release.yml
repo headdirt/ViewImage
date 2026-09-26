@@ -28,8 +28,13 @@ jobs:
     - name: Build extension package
       run: npm run build
 
+    - name: Build userscript
+      run: npm run userscript
+
     - name: Upload package artifact
       uses: actions/upload-artifact@v4
       with:
         name: view-image-extension
-        path: dist/*.zip
+        path: |
+          dist/*.zip
+          dist/viewimage.user.js

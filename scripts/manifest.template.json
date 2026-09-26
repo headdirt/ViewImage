@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "__MSG_appName__",
-    "version": "5.4.4",
+    "version": "5.5.0",
     "description": "__MSG_appDesc__",
     "default_locale": "en",
     "icons": {
@@ -55,9 +55,8 @@
             ],
             "matches": "__GOOGLE_TLD_MATCHES__",
             "include_globs": [
-                "*tbm=isch*",
-                "*imgres?*",
-                "*udm=2*"
+                "*/search?*",
+                "*/imgres?*"
             ]
         }
     ],

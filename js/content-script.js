@@ -1,42 +1,66 @@
 'use strict';
 
 const DEBUG = false;
-const TRACE = DEBUG && false;
 
 const debug = (...args) => { if (DEBUG) console.log('ViewImage:', ...args); };
-const trace = (...args) => { if (TRACE) console.log('ViewImage:', ...args); };
 
-// Modern Google Images layout (Oct 2019 onward)
-const CONTAINER_SELECTORS = ['.tvh9oe', '.EIehLd', '.fHE6De', '.Z7HyUd'];
-const DYNAMIC_CONTAINER_SELECTORS = ['[data-lhcontainer]'];
+// Google has used several URL flags for the Images tab over the years:
+// `tbm=isch` (legacy), `udm=2`, and `udm=imgs`. The manifest injects on all
+// /search and /imgres pages; this decides whether we're actually on Images.
+const IMAGE_SEARCH_UDM_VALUES = ['2', 'imgs'];
 
-// Candidate class names for the "Visit" button Google renders next to the
-// preview. Google rotates these regularly; dynamic discovery covers the rest.
-const VISIT_BUTTON_SELECTOR =
-    '.ZsbmCf[href], a.J2oL9c, a.jAklOc, a.uZ49bd, a.e0XTue, a.kWgFk, a.j7ZI7c';
-const SEARCH_LINK_SELECTOR =
-    '.PvkmDc, .qnLx5b, .zSA7pe, .uZ49bd, .e0XTue, .kWgFk, .j7ZI7c';
-const BUTTON_TEXT_SELECTOR =
-    '.pM4Snf, .KSvtLc, .Pw5kW, .q7UPLe, .K8E1Be, .pFBf7b, span';
+// Google's class names are obfuscated and rotate every few months, so the
+// preview panel is located through attributes and document structure only:
+//
+//   [data-lhcontainer]                  one per preview panel (some preloaded)
+//     [data-id="<docid>"]               the result currently shown
+//     <a href="<page>"><img …></a>      the preview image(s), linked to the page
+//     <h1 id="ucc-0">Title</h1>
+//     <a href="<page>" aria-describedby="ucc-0">Visit</a>
+//
+// Our buttons are clones of the Visit button so they match Google's styling
+// (including dark mode) without us shipping any of it.
+const PANEL_SELECTOR = '[data-lhcontainer]';
+const ADDON_CLASS = 'vi_ext_addon';
+const DISABLED_CLASS = 'vi_ext_disabled';
 
-const IMG_SELECTOR = 'img[src][style][jsaction]';
-const MUTATION_IMG_CLASSES = ['irc_mi', 'irc_mut', 'irc_ris'];
+// Attributes Google uses for its own click handling and click tracking. They
+// are stripped from cloned buttons so clicks go straight to our href and are
+// not reported back to Google.
+const GOOGLE_ATTRIBUTES = [
+    'jsaction', 'jscontroller', 'jsname', 'jslog', 'jsdata', 'ping', 'data-ved',
+    'data-hveid', 'id', 'aria-describedby',
+];
 
-const images = {};
+// On the first page of results Google embeds each result's data in an inline
+// script as `[0,"<docid>",["<thumbnail>",h,w],["<full-size>",h,w],…]`. Results
+// added later by infinite scroll are fetched by Google's own scripts and never
+// reach the DOM, so this only helps for the initial results.
+const PAGE_DATA_PATTERN = /\[0,"([\w-]+)",\["https?:[^"]+",\d+,\d+\],\["(https?:[^"]+)",\d+,\d+\]/g;
+
 let options;
 
-function isGoogleThumbnailURL(imageURL) {
+// --- URL helpers ---------------------------------------------------------
+
+function isImageSearchURL(href) {
     try {
-        return /^encrypted-tbn\d+\.gstatic\.com$/.test(new URL(imageURL).hostname);
+        const url = new URL(href);
+        if (url.pathname === '/imgres') return true;
+        if (url.pathname !== '/search') return false;
+        return url.searchParams.get('tbm') === 'isch' ||
+            IMAGE_SEARCH_UDM_VALUES.includes(url.searchParams.get('udm'));
     } catch {
         return false;
     }
 }
 
-function isSearchableImageURL(imageURL) {
+// A URL we can link to as "the image": a real http(s) URL that isn't one of
+// Google's gstatic thumbnails or favicons.
+function isFullSizeImageURL(imageURL) {
     try {
         const url = new URL(imageURL);
-        return (url.protocol === 'http:' || url.protocol === 'https:') && !isGoogleThumbnailURL(imageURL);
+        return (url.protocol === 'http:' || url.protocol === 'https:') &&
+            !/(^|\.)gstatic\.com$/.test(url.hostname);
     } catch {
         return false;
     }
@@ -44,407 +68,198 @@ function isSearchableImageURL(imageURL) {
 
 function findImageURLFromPageURL() {
     try {
-        return new URL(window.location).searchParams.get('imgurl');
+        return new URL(window.location.href).searchParams.get('imgurl');
     } catch {
         return null;
     }
 }
 
-function removeGoogleClickHandlers(link) {
-    link.removeAttribute('jsaction');
-    for (const el of link.querySelectorAll('[jsaction]')) {
-        el.removeAttribute('jsaction');
-    }
+// --- Page data -----------------------------------------------------------
+
+let pageData = null;
+let pageDataScriptCount = -1;
+
+function decodeScriptString(str) {
+    return str
+        .replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+        .replace(/\\x([0-9a-fA-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+        .replace(/\\\//g, '/');
 }
 
-function disableImageButton(link, title) {
-    link.removeAttribute('href');
-    link.removeAttribute('target');
-    link.removeAttribute('rel');
-    link.style = 'pointer-events: none;';
-    link.title = title;
-
-    const buttonDiv = link.querySelector('div');
-    if (buttonDiv) {
-        buttonDiv.style = 'background-color: #707070; border-color: #707070;';
-    }
-}
-
-// --- DOM discovery ------------------------------------------------------
-
-function getContainer(node) {
-    for (const selector of CONTAINER_SELECTORS) {
-        const container = node.closest(selector);
-        if (container) return container;
-    }
-
-    debug('container class name was not found statically');
-
-    let img = node;
-    if (img.tagName !== 'IMG') {
-        img = node.querySelector(IMG_SELECTOR) || node.closest(IMG_SELECTOR);
-    }
-
-    if (img && img.tagName === 'IMG') {
-        for (const selector of DYNAMIC_CONTAINER_SELECTORS) {
-            const container = img.closest(selector);
-            if (container) return container;
+function findImageURLInPageData(docId) {
+    // Scan lazily, and only again if Google has added scripts since.
+    if (document.scripts.length !== pageDataScriptCount) {
+        pageDataScriptCount = document.scripts.length;
+        pageData = new Map();
+        for (const script of document.scripts) {
+            if (script.src) continue;
+            for (const [, id, imageURL] of script.textContent.matchAll(PAGE_DATA_PATTERN)) {
+                if (!pageData.has(id)) pageData.set(id, decodeScriptString(imageURL));
+            }
         }
+        debug(`Indexed ${pageData.size} results from page data`);
     }
 
-    debug('container class name was not found dynamically');
+    return pageData.get(docId) || null;
+}
+
+// --- DOM discovery -------------------------------------------------------
+
+function findVisitLink(panel) {
+    for (const link of panel.querySelectorAll('a[href][aria-describedby]')) {
+        if (!link.classList.contains(ADDON_CLASS)) return link;
+    }
     return null;
 }
 
-function clearExtElements(container) {
-    for (const el of container.querySelectorAll('.vi_ext_addon')) {
-        el.remove();
-    }
-}
-
-// Dynamically discover the visit-button class name by traversing the DOM
-// relative to an image element. Google's obfuscated class names change, so we
-// locate the button structurally instead of by static class list.
-function findVisitButtonClassName(imgEl) {
-    if (!imgEl) return null;
-
-    const traversals = [
-        el => el.parentElement.parentElement.parentElement.nextSibling.querySelector('div a span').parentElement.parentElement,
-        el => el.parentElement.parentElement.parentElement.nextSibling.nextSibling.querySelector('div a span').parentElement.parentElement,
-        el => el.parentElement.parentElement.parentElement.nextSibling.querySelector('div a div').parentElement,
-        el => el.parentElement.parentElement.nextSibling.querySelector('div a span').parentElement.parentElement,
-        el => el.parentElement.parentElement.nextSibling.nextSibling.querySelector('div a span').parentElement.parentElement,
-    ];
-
-    for (let i = 0; i < traversals.length; i++) {
-        try {
-            return traversals[i](imgEl).className.split(' ')[0];
-        } catch {
-            debug(`vbClassName not found via traversal ${i}`);
+function findImageURL(panel, visitLink) {
+    // 1. The full-size preview <img>, inside the link to the source page.
+    for (const link of panel.querySelectorAll('a[href]')) {
+        if (link === visitLink || link.href !== visitLink.href) continue;
+        for (const img of link.querySelectorAll('img')) {
+            if (isFullSizeImageURL(img.src)) return img.src;
         }
     }
+
+    // 2. Google removes that <img> when the image fails to load (e.g. the host
+    //    blocks hotlinking), which is when "View image" is most useful.
+    const docId = panel.querySelector('[data-id]')?.dataset.id;
+    const fromPageData = docId && findImageURLInPageData(docId);
+    if (isFullSizeImageURL(fromPageData)) return fromPageData;
+
+    // 3. Legacy /imgres?imgurl=… pages.
+    const fromPageURL = findImageURLFromPageURL();
+    if (isFullSizeImageURL(fromPageURL)) return fromPageURL;
 
     return null;
 }
 
-function findImageURL(container) {
-    let image = container.querySelector(IMG_SELECTOR);
-    if (image && image.src in images) {
-        return images[image.src];
-    }
+// --- Button rendering ----------------------------------------------------
 
-    const needsFallback = !image || image.src === '' || image.src.startsWith('data') ||
-        image.src.startsWith('blob') || isGoogleThumbnailURL(image.src);
-
-    // Use fallback sources for embedded, transient, or thumbnail previews.
-    if (needsFallback) {
-        const thumbnail = container.dataset.itemId ?
-            document.querySelector(`img[name="${container.dataset.itemId}"]`) :
-            null;
-        if (thumbnail) {
-            try {
-                const meta = thumbnail.closest('.rg_bx')?.querySelector('.rg_meta');
-                if (meta) {
-                    const metadata = JSON.parse(meta.innerHTML);
-                    if (metadata.ou) return metadata.ou;
-                }
-            } catch {
-                debug('Failed to parse thumbnail metadata');
-            }
+function findLabelElement(button) {
+    for (const el of [button, ...button.querySelectorAll('*')]) {
+        for (const node of el.childNodes) {
+            if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) return el;
         }
-
-        const imgLink = findImageURLFromPageURL();
-        if (imgLink) return imgLink;
     }
+    return null;
+}
 
-    // If the above doesn't work, use the link in related images to find it
-    if (needsFallback) {
-        const targetImage = container.querySelector('img.target_image');
-        if (targetImage) {
-            const link = targetImage.closest('a');
-            if (link) {
-                if (/^[a-z]+:\/\/(?:www\.)?google\.[^/]*\/imgres\?/.test(link.href)) {
-                    const linkUrl = new URL(link.href);
-                    const newImgLink = linkUrl.searchParams.get('imgurl');
-                    if (newImgLink) return newImgLink;
-                } else {
-                    return link.href;
-                }
-            }
+function createButton(visitLink, { label, icon, href, newTab, noReferrer, disabledTitle }) {
+    const button = visitLink.cloneNode(true);
+    button.classList.add(ADDON_CLASS);
+
+    for (const el of [button, ...button.querySelectorAll('*')]) {
+        for (const attr of GOOGLE_ATTRIBUTES) el.removeAttribute(attr);
+        if (el.hasAttribute('aria-label')) el.setAttribute('aria-label', label);
+    }
+    for (const attr of ['href', 'target', 'rel']) button.removeAttribute(attr);
+
+    const labelElement = findLabelElement(button);
+    if (labelElement) {
+        if (icon) {
+            labelElement.textContent = '';
+            const img = document.createElement('img');
+            img.className = 'vi_ext_icon';
+            img.src = icon;
+            img.alt = label;
+            labelElement.appendChild(img);
+        } else {
+            labelElement.textContent = label;
         }
     }
 
-    return image ? image.src : null;
+    if (href) {
+        button.href = href;
+        if (newTab) button.target = '_blank';
+        const rel = [newTab && 'noopener', noReferrer && 'noreferrer'].filter(Boolean);
+        if (rel.length) button.rel = rel.join(' ');
+    } else {
+        button.classList.add(DISABLED_CLASS);
+        button.setAttribute('aria-disabled', 'true');
+        button.title = disabledTitle;
+    }
+
+    return button;
 }
 
-// --- Button injection ---------------------------------------------------
+function renderPanel(panel) {
+    const visitLink = findVisitLink(panel);
+    if (!visitLink) return;
 
-function addViewImageButton(container, imageURL, vbClassName) {
-    const selector = VISIT_BUTTON_SELECTOR + (vbClassName ? `, a.${vbClassName}` : '');
-    const visitButton = container.querySelector(selector);
+    const imageURL = findImageURL(panel, visitLink);
 
-    if (!visitButton) {
-        debug('Adding View-Image button failed, visit button was not found');
-        return false;
-    }
-
-    const viewImageButton = visitButton.cloneNode(true);
-    viewImageButton.classList.add('vi_ext_addon');
-    const viewImageLink = viewImageButton;
-    removeGoogleClickHandlers(viewImageLink);
-
-    if (imageURL && !isGoogleThumbnailURL(imageURL)) {
-        viewImageLink.href = imageURL;
-    } else {
-        disableImageButton(viewImageLink, 'No full-sized image was found.');
-    }
-
-    viewImageLink.removeAttribute('target');
-
-    if (options['open-in-new-tab']) {
-        viewImageLink.setAttribute('target', '_blank');
-    }
-    const relParts = [];
-    if (options['open-in-new-tab']) relParts.push('noopener');
-    if (options['no-referrer']) relParts.push('noreferrer');
-    if (relParts.length) viewImageLink.setAttribute('rel', relParts.join(' '));
-
-    if (imageURL && imageURL.startsWith('data')) {
-        viewImageButton.setAttribute('download', '');
-    }
-
-    const viewImageButtonText = viewImageButton.querySelector(BUTTON_TEXT_SELECTOR);
-    if (!viewImageButtonText) return false;
-
-    if (options['manually-set-button-text']) {
-        viewImageButtonText.innerText = options['button-text-view-image'];
-    } else {
-        localiseObject(viewImageButtonText, '__MSG_viewImage__');
-    }
-
-    visitButton.parentElement.insertBefore(viewImageButton, visitButton);
-    visitButton.parentElement.insertBefore(visitButton, viewImageButton);
-
-    return true;
-}
-
-function addSearchImageButton(container, imageURL, vbClassName) {
-    const selector = SEARCH_LINK_SELECTOR + (vbClassName ? `, .${vbClassName}` : '');
-    const link = container.querySelector(selector);
-
-    if (!link) {
-        debug('Adding Search-By-Image button failed, link was not found');
+    // Mutations fire constantly while the panel is open, including for our own
+    // buttons; only rebuild when what we'd render has changed or Google has
+    // re-rendered the button row and dropped ours.
+    const state = `${visitLink.href}\n${imageURL}`;
+    const existing = panel.querySelectorAll(`.${ADDON_CLASS}`);
+    if (existing.length === 2 && existing[0].dataset.viState === state &&
+        existing[0].previousElementSibling === visitLink) {
         return;
     }
+    for (const el of existing) el.remove();
 
-    const searchImageButton = link.cloneNode(true);
-    searchImageButton.classList.add('vi_ext_addon');
-    removeGoogleClickHandlers(searchImageButton);
-    searchImageButton.removeAttribute('target');
-    searchImageButton.removeAttribute('rel');
+    debug('Rendering buttons for', imageURL, panel);
 
-    const searchImageButtonText = searchImageButton.querySelector('span');
-    if (!searchImageButtonText) return false;
+    const manualText = options['manually-set-button-text'];
+    const viewImageLabel = (manualText && options['button-text-view-image']) || toI18n('__MSG_viewImage__');
+    const searchLabel = (manualText && options['button-text-search-by-image']) || toI18n('__MSG_searchImage__');
 
-    if (options['manually-set-button-text']) {
-        searchImageButtonText.innerText = options['button-text-search-by-image'];
-    } else {
-        searchImageButtonText.innerText = '';
-        const lensButton = document.createElement('img');
-        lensButton.style.marginTop = '5px';
-        lensButton.style.width = '23px';
-        lensButton.src = chrome.runtime.getURL('img/lens.svg');
-        lensButton.alt = 'Search by image';
-        searchImageButtonText.appendChild(lensButton);
-    }
+    const searchButton = createButton(visitLink, {
+        label: searchLabel,
+        icon: manualText && options['button-text-search-by-image'] ? null : chrome.runtime.getURL('img/lens.svg'),
+        href: imageURL && `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(imageURL)}`,
+        newTab: options['open-search-by-in-new-tab'],
+        disabledTitle: 'No searchable image URL was found.',
+    });
+    const viewImageButton = createButton(visitLink, {
+        label: viewImageLabel,
+        href: imageURL,
+        newTab: options['open-in-new-tab'],
+        noReferrer: options['no-referrer'],
+        disabledTitle: 'No full-sized image was found.',
+    });
 
-    if (isSearchableImageURL(imageURL)) {
-        searchImageButton.href = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(imageURL)}`;
-
-        if (options['open-search-by-in-new-tab']) {
-            searchImageButton.setAttribute('target', '_blank');
-            searchImageButton.setAttribute('rel', 'noopener');
-        }
-    } else {
-        disableImageButton(searchImageButton, 'No searchable image URL was found.');
-    }
-
-    link.parentElement.insertBefore(searchImageButton, link);
-    link.parentElement.insertBefore(link, searchImageButton);
+    searchButton.dataset.viState = state;
+    visitLink.after(searchButton, viewImageButton);
 }
 
-function addLinks(node) {
-    debug('Trying to add links to node:', node);
+// --- Observation ---------------------------------------------------------
 
-    const container = getContainer(node);
-    if (!container) {
-        debug('Adding links failed, container was not found');
-        return false;
-    }
-
-    clearExtElements(container);
-
-    const imageURL = findImageURL(container);
-    if (!imageURL) {
-        debug('Adding links failed, image was not found');
-        return false;
-    }
-
-    const imgEl = document.querySelector(IMG_SELECTOR);
-    const vbClassName = findVisitButtonClassName(imgEl);
-
-    addViewImageButton(container, imageURL, vbClassName);
-    addSearchImageButton(container, imageURL, vbClassName);
-
-    return true;
-}
-
-// --- Data-source parsing ------------------------------------------------
-
-function parseDataSource(array) {
-    debug('Parsing data source...');
-
-    let meta;
-    try {
-        meta = array[31][0][12][2];
-        for (const entry of meta) {
-            try {
-                images[entry[1][2][0]] = entry[1][3][0];
-            } catch {
-                debug('Skipping image');
-            }
-        }
-    } catch {
-        // Fallback data structure path
-        meta = array[56][1][0][0][1][0];
-        for (const entry of meta) {
-            try {
-                const data = Object.values(entry[0][0])[0];
-                images[data[1][2][0]] = data[1][3][0];
-            } catch {
-                debug('Skipping image');
-            }
-        }
-    }
-}
-
-function parseDataSourceType1(params) {
-    debug('Parsing data source type 1...');
-
-    const dataStart = /\sdata:\[/;
-    const dataEnd = '], ';
-
-    const match = params.match(dataStart);
-    const startIndex = match.index + match[0].length - 1;
-    const endIndex = startIndex + params.slice(startIndex).indexOf(dataEnd) + 1;
-
-    parseDataSource(JSON.parse(params.slice(startIndex, endIndex)));
-}
-
-function bootstrapImageIndex() {
-    try {
-        const startSearch = />AF_initDataCallback\(/g;
-        const endSearch = ');</script>';
-        const htmlContent = document.documentElement.innerHTML;
-        let success = false;
-
-        let match;
-        while (!success && ((match = startSearch.exec(htmlContent)) !== null)) {
-            const startIndex = match.index + match[0].length;
-            const endIndex = startIndex + htmlContent.slice(startIndex).indexOf(endSearch);
-            const params = htmlContent.slice(startIndex, endIndex);
-
-            const dsMatch = params.match(/key:\s'ds:(\d)'/);
-            if (dsMatch === null) continue;
-
-            if (dsMatch[1] === '1') {
-                parseDataSourceType1(params);
-                success = true;
-            }
-        }
-
-        if (success) {
-            debug('Successfully created source images array');
-        } else {
-            debug('Failed to find data source');
-        }
-    } catch (error) {
-        debug('Failed to create source images array');
-        if (DEBUG) console.error(error);
-    }
-}
-
-bootstrapImageIndex();
-
-// --- MutationObserver with rAF batching ---------------------------------
-
-const pendingNodes = new Set();
 let frameScheduled = false;
 
-function scheduleAddLinks(node) {
-    pendingNodes.add(node);
+function renderAllPanels() {
+    frameScheduled = false;
+    for (const panel of document.querySelectorAll(PANEL_SELECTOR)) {
+        renderPanel(panel);
+    }
+}
+
+function scheduleRender() {
     if (frameScheduled) return;
     frameScheduled = true;
-    requestAnimationFrame(() => {
-        frameScheduled = false;
-        const batch = Array.from(pendingNodes);
-        pendingNodes.clear();
-        for (const n of batch) addLinks(n);
-    });
+    requestAnimationFrame(renderAllPanels);
 }
 
-function scheduleInitialLinks() {
-    const selectors = CONTAINER_SELECTORS.concat(DYNAMIC_CONTAINER_SELECTORS, IMG_SELECTOR);
-    for (const node of document.querySelectorAll(selectors.join(','))) {
-        scheduleAddLinks(node);
-    }
-}
-
-const observer = new MutationObserver(mutations => {
-    trace('Mutations detected:', mutations);
-
-    let imgClassName;
-    try {
-        imgClassName = document.querySelector(IMG_SELECTOR).className.split(' ')[0];
-    } catch {
-        imgClassName = null;
-    }
-
-    const classesToCheck = [...MUTATION_IMG_CLASSES];
-    if (imgClassName) classesToCheck.push(imgClassName);
-
-    for (const mutation of mutations) {
-        for (const node of mutation.addedNodes || []) {
-            if (!node.classList) continue;
-            if (classesToCheck.some(c => node.classList.contains(c))) {
-                scheduleAddLinks(node);
-            }
-        }
-
-        if (imgClassName && mutation.target.classList && mutation.target.classList.contains(imgClassName)) {
-            for (const selector of CONTAINER_SELECTORS) {
-                const node = mutation.target.closest(selector);
-                if (node && !node.hasAttribute('aria-hidden')) {
-                    scheduleAddLinks(node);
-                    break;
-                }
-            }
-        }
-    }
-});
-
-// Get options and start observing
-storageSyncGet('options').then(storage => {
+async function start() {
+    const storage = await storageSyncGet('options');
     options = Object.assign({}, VIEW_IMAGE_DEFAULT_OPTIONS, storage.options || {});
 
     debug('Initialising observer...');
 
-    observer.observe(document.body || document.documentElement, {
+    new MutationObserver(scheduleRender).observe(document.body || document.documentElement, {
         childList: true,
         subtree: true,
         attributes: true,
-        attributeFilter: ['class', 'src', 'style'],
+        attributeFilter: ['src', 'href', 'data-id'],
     });
 
-    scheduleInitialLinks();
-});
+    scheduleRender();
+}
+
+if (isImageSearchURL(window.location.href)) {
+    start();
+} else {
+    debug('Not an image search page, skipping');
+}

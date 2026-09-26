@@ -1,12 +1,10 @@
-.PvkmDc.vi_ext_addon,
-.qnLx5b.vi_ext_addon {
-    margin: 0 4pt !important;
+.vi_ext_icon {
+    display: block;
+    width: 1.5em;
+    height: 1.5em;
 }
 
-.zSA7pe[href^="/searchbyimage"] {
-    margin-left: 4px;
-}
-
-.ZsbmCf.vi_ext_addon {
-    flex-grow: 0;
+.vi_ext_addon.vi_ext_disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
