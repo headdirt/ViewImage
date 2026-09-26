@@ -16,14 +16,8 @@ jobs:
 
     - name: Install Deps
       run: npm ci
-    - name: Lint with ESLint
-      run: npm run lint
     - name: Lint extension with web-ext
-      run: npm run lint:extension
-    - name: Check generated manifest
-      run: |
-        npm run manifest
-        git diff --exit-code manifest.json
+      run: npm run lint
     - name: Install Playwright Chromium
       run: npx playwright install --with-deps chromium
     - name: Run tests

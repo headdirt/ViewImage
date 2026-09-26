@@ -5,6 +5,8 @@
 
 View Image is a Chrome / Firefox extension that re-implements the "View image" button in Google Image Search.
 
+This is the minimal build: one content script, no permissions, no options. It adds a single "View image" button (always opens in a new tab) next to Google's "Visit" button.
+
 This repository is a maintained fork of [bijij/ViewImage](https://github.com/bijij/ViewImage). The original browser store listings are not maintained from this fork.
 
 ## Install
@@ -27,10 +29,6 @@ This fork is distributed from GitHub only.
 
 Firefox temporary add-ons are removed when Firefox restarts. This fork does not currently maintain an AMO listing or signed self-distributed releases.
 
-### Userscript
-
-A userscript version is published as a [gist](https://gist.github.com/headdirt/1af7759b4e3faf544a802e5300428a80) for Tampermonkey, Violentmonkey and similar managers. It is generated from the extension source, so both behave the same; options are set by editing `USER_OPTIONS` at the top of the script.
-
 ## Development
 
 Install dependencies:
@@ -43,16 +41,7 @@ Run checks:
 
 ```sh
 npm run lint
-npm run lint:extension
 npm test
-```
-
-If you edit the TLD list or manifest structure, run `npm run manifest`.
-
-Build the userscript into `dist/viewimage.user.js` (never edit the gist by hand; it is overwritten from this output):
-
-```sh
-npm run userscript
 ```
 
 Build a release zip:
@@ -71,11 +60,11 @@ The smoke test opens a headed Chromium browser with the extension loaded and che
 
 ### How the content script finds things
 
-Google's class names are obfuscated and change every few months, so `js/content-script.js` avoids them entirely:
+Google's class names are obfuscated and change every few months, so `content-script.js` avoids them entirely:
 
-- The manifest injects on `/search` and `/imgres`; `isImageSearchURL()` decides whether the page is Images (`udm=2`, `udm=imgs` or legacy `tbm=isch`).
+- The manifest injects on `/search`; `isImageSearch()` decides whether the page is Images (`udm=2`, `udm=imgs` or legacy `tbm=isch`).
 - The preview panel is `[data-lhcontainer]`. The "Visit" button is the link described by the result title (`a[aria-describedby]`), and the preview image is inside the other link to the same page.
-- If the full-size image failed to load, its URL is looked up by result id in the data Google embeds in the page (first page of results only).
+- If Google hasn't loaded a full-size image (or it failed to load), no button is shown.
 
 ## Credits
 

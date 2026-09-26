@@ -12,37 +12,8 @@ const FULL_URL = 'https://example.com/full.jpg';
 const THUMBNAIL_URL = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:thumb&s=10';
 const FAVICON_URL = 'https://encrypted-tbn2.gstatic.com/faviconV2?url=https://example.com';
 
-async function loadContentScript(page, options = {}) {
-    await page.evaluate((mockOptions) => {
-        window.chrome = {
-            i18n: {
-                getMessage(key) {
-                    const messages = {
-                        viewImage: 'View image',
-                        searchImage: 'Search by image',
-                    };
-                    return messages[key] || key;
-                },
-            },
-            runtime: {
-                getURL(pathname) {
-                    return `chrome-extension://view-image/${pathname}`;
-                },
-            },
-            storage: {
-                sync: {
-                    get(_keys, callback) {
-                        callback({ options: mockOptions });
-                    },
-                },
-            },
-        };
-    }, options);
-
-    await page.addScriptTag({ path: path.join(extensionPath, 'js/default-options.js') });
-    await page.addScriptTag({ path: path.join(extensionPath, 'js/extension-api.js') });
-    await page.addScriptTag({ path: path.join(extensionPath, 'js/i18n.js') });
-    await page.addScriptTag({ path: path.join(extensionPath, 'js/content-script.js') });
+async function loadContentScript(page) {
+    await page.addScriptTag({ path: path.join(extensionPath, 'content-script.js') });
 }
 
 // Mirrors the structure of Google's preview panel (Sept 2026), with class names
@@ -84,39 +55,27 @@ async function gotoGooglePage(page, url = IMAGE_SEARCH_URL, body = '') {
 }
 
 const addons = page => page.locator('.vi_ext_addon');
-const searchButton = page => addons(page).nth(0);
-const viewImageButton = page => addons(page).nth(1);
+const viewImageButton = page => addons(page).first();
 
-test('adds Search by image and View image after the Visit button', async ({ page }) => {
+test('adds View image after the Visit button', async ({ page }) => {
     await gotoGooglePage(page, IMAGE_SEARCH_URL, panelHTML());
     await loadContentScript(page);
 
-    await expect(addons(page)).toHaveCount(2);
-    const order = await page.locator('a[aria-describedby] ~ a').evaluateAll(
-        links => links.map(a => a.textContent.trim() || a.querySelector('img')?.alt)
-    );
-    expect(order).toEqual(['Search by image', 'View image']);
+    await expect(addons(page)).toHaveCount(1);
+    await expect(page.locator('a[aria-describedby] + a')).toHaveClass(/vi_ext_addon/);
 
     await expect(viewImageButton(page)).toHaveAttribute('href', FULL_URL);
     await expect(viewImageButton(page)).toHaveAttribute('target', '_blank');
     await expect(viewImageButton(page)).toHaveAttribute('rel', 'noopener');
     await expect(viewImageButton(page)).toHaveText('View image');
     await expect(viewImageButton(page).locator('[aria-label]')).toHaveAttribute('aria-label', 'View image');
-
-    await expect(searchButton(page)).toHaveAttribute(
-        'href',
-        `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(FULL_URL)}`
-    );
-    await expect(searchButton(page).locator('img.vi_ext_icon')).toHaveAttribute(
-        'src', 'chrome-extension://view-image/img/lens.svg'
-    );
 });
 
 test('strips Google click handlers and click tracking from cloned buttons', async ({ page }) => {
     await gotoGooglePage(page, IMAGE_SEARCH_URL, panelHTML());
     await loadContentScript(page);
 
-    await expect(addons(page)).toHaveCount(2);
+    await expect(addons(page)).toHaveCount(1);
     const leftovers = await addons(page).evaluateAll(buttons => buttons.flatMap(button =>
         [button, ...button.querySelectorAll('*')].flatMap(el =>
             ['jsaction', 'jsname', 'ping', 'data-ved', 'aria-describedby', 'id'].filter(a => el.hasAttribute(a))
@@ -134,7 +93,7 @@ for (const url of [
         await gotoGooglePage(page, url, panelHTML());
         await loadContentScript(page);
 
-        await expect(addons(page)).toHaveCount(2);
+        await expect(addons(page)).toHaveCount(1);
     });
 }
 
@@ -152,65 +111,13 @@ for (const url of [
     });
 }
 
-test('applies link privacy and new-tab options', async ({ page }) => {
-    await gotoGooglePage(page, IMAGE_SEARCH_URL, panelHTML());
-    await loadContentScript(page, {
-        'no-referrer': true,
-        'open-search-by-in-new-tab': false,
-    });
-
-    await expect(viewImageButton(page)).toHaveAttribute('rel', 'noopener noreferrer');
-    await expect(searchButton(page)).not.toHaveAttribute('target');
-    await expect(searchButton(page)).not.toHaveAttribute('rel');
-});
-
-test('uses manually set button text', async ({ page }) => {
-    await gotoGooglePage(page, IMAGE_SEARCH_URL, panelHTML());
-    await loadContentScript(page, {
-        'manually-set-button-text': true,
-        'button-text-view-image': 'Open',
-        'button-text-search-by-image': 'Lens',
-    });
-
-    await expect(viewImageButton(page)).toHaveText('Open');
-    await expect(searchButton(page)).toHaveText('Lens');
-    await expect(searchButton(page).locator('img')).toHaveCount(0);
-});
-
-test('falls back to page data when the full-size image failed to load', async ({ page }) => {
-    const pageData = '<script>var d={"a1":[1,[0,"DOC1",["https://encrypted-tbn0.gstatic.com/images?q\\u003dtbn:x\\u0026s",215,235],' +
-        '["https://example.com/from-data.jpg?a\\u003d1\\u0026b\\u003d2",843,922],"x"]]};</script>';
-    await gotoGooglePage(page, IMAGE_SEARCH_URL, pageData + panelHTML({ fullURL: null }));
-    await loadContentScript(page);
-
-    await expect(viewImageButton(page)).toHaveAttribute('href', 'https://example.com/from-data.jpg?a=1&b=2');
-});
-
-test('uses the imgres image URL when Google renders only a thumbnail', async ({ page }) => {
-    const imageURL = 'https://example.com/original.jpg';
-    await gotoGooglePage(
-        page,
-        `https://www.google.com/imgres?imgurl=${encodeURIComponent(imageURL)}`,
-        panelHTML({ fullURL: null })
-    );
-    await loadContentScript(page);
-
-    await expect(viewImageButton(page)).toHaveAttribute('href', imageURL);
-});
-
-test('shows disabled buttons when no full-size image URL is available', async ({ page }) => {
+test('adds no button when no full-size image URL is available', async ({ page }) => {
     await gotoGooglePage(page, IMAGE_SEARCH_URL, panelHTML({ fullURL: null }));
     await loadContentScript(page);
+    await page.waitForTimeout(100);
 
-    for (const button of [viewImageButton(page), searchButton(page)]) {
-        await expect(button).not.toHaveAttribute('href');
-        await expect(button).not.toHaveAttribute('target');
-        await expect(button).toHaveAttribute('aria-disabled', 'true');
-        await expect(button).toHaveClass(/vi_ext_disabled/);
-    }
-    await expect(viewImageButton(page)).toHaveAttribute('title', 'No full-sized image was found.');
+    await expect(addons(page)).toHaveCount(0);
 });
-
 test('updates buttons when the panel switches to another result', async ({ page }) => {
     await gotoGooglePage(page, IMAGE_SEARCH_URL, panelHTML());
     await loadContentScript(page);
@@ -226,13 +133,14 @@ test('updates buttons when the panel switches to another result', async ({ page 
     });
 
     await expect(viewImageButton(page)).toHaveAttribute('href', 'https://example.com/second.jpg');
-    await expect(addons(page)).toHaveCount(2);
+    await expect(addons(page)).toHaveCount(1);
 });
 
-test('upgrades disabled buttons once the full-size image appears', async ({ page }) => {
+test('adds the button once the full-size image appears', async ({ page }) => {
     await gotoGooglePage(page, IMAGE_SEARCH_URL, panelHTML({ fullURL: null }));
     await loadContentScript(page);
-    await expect(viewImageButton(page)).toHaveAttribute('aria-disabled', 'true');
+    await page.waitForTimeout(100);
+    await expect(addons(page)).toHaveCount(0);
 
     await page.evaluate(fullURL => {
         const img = document.createElement('img');
@@ -241,14 +149,13 @@ test('upgrades disabled buttons once the full-size image appears', async ({ page
     }, FULL_URL);
 
     await expect(viewImageButton(page)).toHaveAttribute('href', FULL_URL);
-    await expect(viewImageButton(page)).not.toHaveAttribute('aria-disabled');
-    await expect(addons(page)).toHaveCount(2);
+    await expect(addons(page)).toHaveCount(1);
 });
 
 test('re-adds buttons when Google re-renders the button row', async ({ page }) => {
     await gotoGooglePage(page, IMAGE_SEARCH_URL, panelHTML());
     await loadContentScript(page);
-    await expect(addons(page)).toHaveCount(2);
+    await expect(addons(page)).toHaveCount(1);
 
     await page.evaluate(() => {
         for (const el of document.querySelectorAll('.vi_ext_addon')) el.remove();
@@ -256,20 +163,20 @@ test('re-adds buttons when Google re-renders the button row', async ({ page }) =
         row.replaceWith(row.cloneNode(true));
     });
 
-    await expect(addons(page)).toHaveCount(2);
+    await expect(addons(page)).toHaveCount(1);
 });
 
 test('handles preloaded panels and panels added after load', async ({ page }) => {
     await gotoGooglePage(page, IMAGE_SEARCH_URL, panelHTML());
     await loadContentScript(page);
-    await expect(addons(page)).toHaveCount(2);
+    await expect(addons(page)).toHaveCount(1);
 
     await page.evaluate(html => {
         document.body.insertAdjacentHTML('beforeend', html);
     }, panelHTML({ docId: 'DOC2', pageURL: 'https://example.com/two', fullURL: 'https://example.com/two.jpg' }));
 
-    await expect(addons(page)).toHaveCount(4);
-    await expect(page.locator('[data-id="DOC2"] .vi_ext_addon').nth(1)).toHaveAttribute(
+    await expect(addons(page)).toHaveCount(2);
+    await expect(page.locator('[data-id="DOC2"] .vi_ext_addon')).toHaveAttribute(
         'href', 'https://example.com/two.jpg'
     );
 });

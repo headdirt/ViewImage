@@ -29,7 +29,7 @@ test('adds View image controls on Google Images', async () => {
         });
 
         await page.locator('[data-docid] img').first().click();
-        const viewImage = page.locator('[data-lhcontainer] .vi_ext_addon:not(.vi_ext_disabled)').filter({ visible: true }).last();
+        const viewImage = page.locator('[data-lhcontainer] .vi_ext_addon').filter({ visible: true }).last();
         await expect(viewImage).toBeVisible();
         await expect(viewImage).toHaveAttribute('href', /^https?:\/\//);
     } finally {

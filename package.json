@@ -1,24 +1,16 @@
 {
     "name": "view-image-extension",
-    "version": "5.5.0",
+    "version": "6.0.0",
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "web-ext build --source-dir . --artifacts-dir dist --overwrite-dest --ignore-files package.json package-lock.json node_modules tests test-results .tmp-playwright-profile playwright.config.mjs eslint.config.mjs scripts .github .claude .DS_Store dist README.md",
-        "lint": "eslint .",
-        "lint:extension": "web-ext lint --source-dir . --ignore-files package.json package-lock.json node_modules dist tests test-results .tmp-playwright-profile playwright.config.mjs eslint.config.mjs scripts .github .claude .DS_Store",
-        "manifest": "node scripts/build-manifest.mjs",
-        "userscript": "node scripts/build-userscript.mjs",
-        "test": "playwright test tests/content-script.spec.mjs tests/userscript.spec.mjs",
+        "build": "web-ext build --source-dir . --artifacts-dir dist --overwrite-dest --ignore-files package.json package-lock.json node_modules tests test-results .tmp-playwright-profile playwright.config.mjs .github .claude .DS_Store dist README.md icon/icon.svg",
+        "lint": "web-ext lint --source-dir . --ignore-files package.json package-lock.json node_modules dist tests test-results .tmp-playwright-profile playwright.config.mjs .github .claude .DS_Store",
+        "test": "playwright test tests/content-script.spec.mjs",
         "smoke": "playwright test tests/smoke"
     },
     "devDependencies": {
-        "@eslint/eslintrc": "3.3.5",
-        "@eslint/js": "10.0.1",
         "@playwright/test": "1.59.1",
-        "eslint": "10.2.0",
-        "eslint-plugin-json": "4.0.1",
-        "globals": "17.5.0",
         "web-ext": "10.1.0"
     }
 }
