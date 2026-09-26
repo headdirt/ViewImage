@@ -4,7 +4,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "web-ext build --source-dir . --artifacts-dir dist --overwrite-dest --ignore-files package.json package-lock.json node_modules tests test-results .tmp-playwright-profile playwright.config.mjs .github .claude .DS_Store dist README.md icon/icon.svg",
+        "build": "web-ext build --source-dir . --artifacts-dir dist --overwrite-dest --ignore-files package.json package-lock.json node_modules tests test-results .tmp-playwright-profile playwright.config.mjs .github .claude .DS_Store dist README.md",
         "lint": "web-ext lint --source-dir . --ignore-files package.json package-lock.json node_modules dist tests test-results .tmp-playwright-profile playwright.config.mjs .github .claude .DS_Store",
         "test": "playwright test tests/content-script.spec.mjs",
         "smoke": "playwright test tests/smoke"
