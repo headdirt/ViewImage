@@ -111,6 +111,15 @@ for (const url of [
     });
 }
 
+test('falls back to page data when the full-size image has not loaded', async ({ page }) => {
+    const pageData = '<script>var d={"a1":[1,[0,"DOC1",["https://encrypted-tbn0.gstatic.com/images?q\\u003dtbn:x\\u0026s",215,235],' +
+        '["https://example.com/from-data.jpg?a\\u003d1\\u0026b\\u003d2",843,922],"x"]]};</script>';
+    await gotoGooglePage(page, IMAGE_SEARCH_URL, pageData + panelHTML({ fullURL: null }));
+    await loadContentScript(page);
+
+    await expect(viewImageButton(page)).toHaveAttribute('href', 'https://example.com/from-data.jpg?a=1&b=2');
+});
+
 test('adds no button when no full-size image URL is available', async ({ page }) => {
     await gotoGooglePage(page, IMAGE_SEARCH_URL, panelHTML({ fullURL: null }));
     await loadContentScript(page);

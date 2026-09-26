@@ -64,7 +64,7 @@ Google's class names are obfuscated and change every few months, so `content-scr
 
 - The manifest injects on `/search`; `isImageSearch()` decides whether the page is Images (`udm=2`, `udm=imgs` or legacy `tbm=isch`).
 - The preview panel is `[data-lhcontainer]`. The "Visit" button is the link described by the result title (`a[aria-describedby]`), and the preview image is inside the other link to the same page.
-- If Google hasn't loaded a full-size image (or it failed to load), no button is shown.
+- Until the full-size image has loaded (or if it failed to), its URL is looked up by result id in the data Google embeds in the page (first page of results only). Otherwise no button is shown.
 
 ## Credits
 

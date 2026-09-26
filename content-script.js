@@ -25,14 +25,48 @@ function isImageSearch() {
 // Anything but Google's own gstatic thumbnails and favicons.
 const isFullSizeImage = src => /^https?:\/\//.test(src) && !/^https?:\/\/([^/]*\.)?gstatic\.com\//.test(src);
 
+// On the first page of results Google embeds each result's data in an inline
+// script as `[0,"<docid>",["<thumbnail>",h,w],["<full-size>",h,w],…]`. Results
+// added later by infinite scroll are fetched by Google's own scripts and never
+// reach the DOM, so this only helps for the initial results.
+const PAGE_DATA_PATTERN = /\[0,"([\w-]+)",\["https?:[^"]+",\d+,\d+\],\["(https?:[^"]+)",\d+,\d+\]/g;
+
+let pageData = new Map();
+let pageDataScriptCount = -1;
+
+const decodeScriptString = str => str
+    .replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/\\x([0-9a-fA-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/\\\//g, '/');
+
+function findImageURLInPageData(docId) {
+    // Scan lazily, and only again if Google has added scripts since.
+    if (document.scripts.length !== pageDataScriptCount) {
+        pageDataScriptCount = document.scripts.length;
+        pageData = new Map();
+        for (const script of document.scripts) {
+            if (script.src) continue;
+            for (const [, id, imageURL] of script.textContent.matchAll(PAGE_DATA_PATTERN)) {
+                if (!pageData.has(id)) pageData.set(id, decodeScriptString(imageURL));
+            }
+        }
+    }
+    return pageData.get(docId) || null;
+}
+
 function findImageURL(panel, visitLink) {
+    // The full-size preview <img>, inside the link to the source page.
     for (const link of panel.querySelectorAll('a[href]')) {
         if (link === visitLink || link.href !== visitLink.href) continue;
         for (const img of link.querySelectorAll('img')) {
             if (isFullSizeImage(img.src)) return img.src;
         }
     }
-    return null;
+
+    // Until that has loaded, or if it failed to, the URL from the page data.
+    const docId = panel.querySelector('[data-id]')?.dataset.id;
+    const fromPageData = docId && findImageURLInPageData(docId);
+    return isFullSizeImage(fromPageData) ? fromPageData : null;
 }
 
 function createButton(visitLink, imageURL) {
